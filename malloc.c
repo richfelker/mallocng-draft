@@ -132,10 +132,9 @@ struct meta {
 	uintptr_t maplen:8*sizeof(uintptr_t)-12;
 };
 
-static struct meta builtin_meta[16];
 static struct meta *free_meta_head;
-static struct meta *avail_meta = builtin_meta;
-static size_t avail_meta_count = sizeof builtin_meta / sizeof *builtin_meta;
+static struct meta *avail_meta;
+static size_t avail_meta_count;
 static struct meta *active[48];
 static size_t usage_by_class[48];
 
