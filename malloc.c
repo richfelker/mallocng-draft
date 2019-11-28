@@ -81,6 +81,19 @@ static const uint16_t size_classes[] = {
 	4680, 5460, 6552, 8191,
 };
 
+static const uint8_t small_cnt_tab[][3] = {
+	{ 30, 30, 30 },
+	{ 31, 15, 15 },
+	{ 20, 10, 10 },
+	{ 31, 15, 7 },
+	{ 25, 12, 6 },
+	{ 21, 10, 5 },
+	{ 18, 8, 4 },
+	{ 31, 15, 7 },
+};
+
+static const uint8_t med_cnt_tab[4] = { 28, 24, 20, 32 };
+
 #define MMAP_THRESHOLD 131052
 
 static int size_to_class(size_t n)
@@ -124,6 +137,7 @@ static struct meta *free_meta_head, *full_groups_head;
 static struct meta *avail_meta = builtin_meta;
 static size_t avail_meta_count = sizeof builtin_meta / sizeof *builtin_meta;
 static struct meta *active[48];
+static size_t usage_by_class[48];
 
 static void queue(struct meta **phead, struct meta *m)
 {
@@ -185,10 +199,12 @@ static void free_meta(struct meta *m)
 	queue(&free_meta_head, m);
 }
 
-static uint32_t try_avail(struct meta **pm, uint32_t mask)
+static uint32_t try_avail(struct meta **pm)
 {
 	struct meta *m = *pm;
 	uint32_t first;
+	if (!m) return 0;
+	uint32_t mask = m->avail_mask;
 	if (!mask) {
 		if (!m) return 0;
 		if (!m->freed_mask) {
@@ -247,6 +263,10 @@ static void nontrivial_free(struct meta *, int, uint32_t);
 
 static void free_group(struct meta *g)
 {
+	int sc = g->sizeclass;
+	if (sc < 48) {
+		usage_by_class[sc] -= (g->last_idx+1)*size_classes[sc]*16;
+	}
 	if (g->maplen) {
 		munmap(g->mem, g->maplen*4096);
 	} else if (g->freeable) {
@@ -258,44 +278,27 @@ static void free_group(struct meta *g)
 	free_meta(g);
 }
 
-static struct meta *alloc_group(size_t n, int cnt)
+static struct meta *alloc_pseudo_group(size_t n)
 {
 	struct meta *m;
-	size_t needed = (n+4)*cnt + sizeof(struct group);
-	if (1 || needed >= MMAP_THRESHOLD) {
-		void *p;
-		p = mmap(0, needed, PROT_READ|PROT_WRITE, MAP_PRIVATE|MAP_ANON, -1, 0);
-		if (!p) return 0;
-		m = alloc_meta();
-		if (!m) {
-			munmap(p, needed);
-			return 0;
-		}
-		m->avail_mask = (2u<<(cnt-1))-1;
-		m->freed_mask = 0;
-		m->mem = p;
-		m->mem->meta = m;
-		m->last_idx = cnt-1;
-		m->freeable = 1;
-		m->sizeclass = n>=16*size_classes[47] ? 63 : size_to_class(n);
-		m->maplen = (needed+4095)/4096;
-		return m;
+	size_t needed = n + 4 + sizeof(struct group);
+	void *p;
+	p = mmap(0, needed, PROT_READ|PROT_WRITE, MAP_PRIVATE|MAP_ANON, -1, 0);
+	if (!p) return 0;
+	m = alloc_meta();
+	if (!m) {
+		munmap(p, needed);
+		return 0;
 	}
-#if 0
-	int sc = size_to_class(
-
-	if (needed < MMAP_THRESHOLD) {
-		int i, sc = size_to_class(needed);
-		for (i=sc; i<SIZE_CLASS_CNT; i++) {
-			if (active[i]) {
-				if (!active[i]->avail_mask)
-					cycle_full_group(&active[i]);
-				if (active[i]) break;
-			}
-		}
-		if (i<SIZE_CLASS_CNT)
-	}
-#endif
+	m->avail_mask = 1;
+	m->freed_mask = 0;
+	m->mem = p;
+	m->mem->meta = m;
+	m->last_idx = 0;
+	m->freeable = 1;
+	m->sizeclass = 63;
+	m->maplen = (needed+4095)/4096;
+	return m;
 }
 
 static size_t get_stride(struct meta *g)
@@ -339,6 +342,66 @@ static int size_overflows(size_t n)
 	return 0;
 }
 
+static struct meta *alloc_group(int sc)
+{
+	size_t size = 16*size_classes[sc];
+	int i = 0, cnt;
+	void *p;
+	struct meta *m = alloc_meta();
+	if (!m) return 0;
+	if (sc < 8) {
+		while (i<2 && size*small_cnt_tab[sc][i] > usage_by_class[sc]/2)
+			i++;
+		cnt = small_cnt_tab[sc][i];
+	} else {
+		i = 3 + (sc&1);
+		cnt = med_cnt_tab[sc&3];
+		int want_mmap = (size*cnt+16 >= PAGESIZE);
+		while (i-- && size*cnt > usage_by_class[sc]/2 &&
+		       (!want_mmap || size*cnt-16 > PAGESIZE))
+			cnt >>= 1;
+	}
+	if (size*cnt+16*cnt >= PAGESIZE) {
+		size_t needed = (size+4)*cnt + sizeof(struct group);
+		needed += -needed & (PAGESIZE-1);
+		p = mmap(0, needed, PROT_READ|PROT_WRITE, MAP_PRIVATE|MAP_ANON, -1, 0);
+		if (!p) {
+			free_meta(m);
+			return 0;
+		}
+		m->maplen = needed>>12;
+	} else {
+		int j = size_to_class(16+cnt*size-4);
+		uint32_t first = try_avail(&active[j]);
+		struct meta *g;
+		if (first) {
+			g = active[j];
+		} else {
+			g = alloc_group(j);
+			if (!g) {
+				free_meta(m);
+				return 0;
+			}
+			queue(&active[j], g);
+			first = 1;
+			g->avail_mask -= first;
+		}
+		p = enframe(g, a_ctz_32(first), 16*size_classes[j]-4);
+		m->maplen = 0;
+		for (int i=0; i<=cnt; i++)
+			((char *)p)[16+i*size-4] = 0;
+	}
+	usage_by_class[sc] += cnt*size;
+	m->avail_mask = (2u<<(cnt-1))-1;
+	m->freed_mask = 0;
+	m->mem = p;
+	m->mem->meta = m;
+	m->last_idx = cnt-1;
+	m->freeable = 1;
+	m->sizeclass = sc;
+	return m;
+}
+
 void *malloc(size_t n)
 {
 	if (size_overflows(n)) return 0;
@@ -348,7 +411,7 @@ void *malloc(size_t n)
 
 	if (n >= MMAP_THRESHOLD) {
 		wrlock();
-		struct meta *m = alloc_group(n, 1);
+		struct meta *m = alloc_pseudo_group(n);
 		if (!m) {
 			unlock();
 			return 0;
@@ -378,13 +441,11 @@ void *malloc(size_t n)
 	}
 	upgradelock();
 //FIXME
-	cur = active[sc];
-	mask = cur ? cur->avail_mask : 0;
-	if ((first = try_avail(&active[sc], mask))) {
+	if ((first = try_avail(&active[sc]))) {
 		cur = active[sc];
 		goto success;
 	}
-	cur = alloc_group(16*size_classes[sc]-4, 15);
+	cur = alloc_group(sc);
 	first = 1;
 	if (!cur) goto fail;
 	cur->avail_mask -= first;
@@ -565,7 +626,7 @@ void dump_heap(FILE *f)
 	fprintf(f, "free groups by size class:\n");
 	for (int i=0; i<48; i++) {
 		if (!active[i]) continue;
-		fprintf(f, "-- class %d (%d) --\n", i, size_classes[i]*16);
+		fprintf(f, "-- class %d (%d) (%zu used) --\n", i, size_classes[i]*16, usage_by_class[i]);
 		print_group_list(f, active[i]);
 	}
 
