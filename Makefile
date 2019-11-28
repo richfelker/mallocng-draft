@@ -8,6 +8,9 @@ CFLAGS = -Wall -O2 -fno-asynchronous-unwind-tables -fno-align-jumps -fno-align-f
 
 all: $(ALL)
 
+clean:
+	rm -f $(ALL) $(OBJS)
+
 libmallocng.a: $(OBJS)
 	rm -f $@
 	ar rc $@ $(OBJS)
