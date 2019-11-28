@@ -2,7 +2,7 @@
 ALL = libmallocng.a libmallocng.so
 SRCS = malloc.c
 OBJS = $(SRCS:.c=.o)
-CFLAGS = -Wall -O2 -fno-asynchronous-unwind-tables -O2 -fno-align-jumps -fno-align-functions -fno-align-loops -fno-align-labels -fno-prefetch-loop-arrays -freorder-blocks-algorithm=simple -fPIC
+CFLAGS = -Wall -O2 -fno-asynchronous-unwind-tables -fno-align-jumps -fno-align-functions -fno-align-loops -fno-align-labels -fno-prefetch-loop-arrays -freorder-blocks-algorithm=simple -fPIC
 
 -include config.mak
 
