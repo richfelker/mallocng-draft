@@ -374,7 +374,7 @@ static struct meta *alloc_group(int sc)
 			cnt >>= 1;
 	}
 	if (size*cnt+16*cnt >= PAGESIZE) {
-		size_t needed = (size+4)*cnt + sizeof(struct group);
+		size_t needed = size*cnt + sizeof(struct group);
 		needed += -needed & (PAGESIZE-1);
 		p = mmap(0, needed, PROT_READ|PROT_WRITE, MAP_PRIVATE|MAP_ANON, -1, 0);
 		if (!p) {
