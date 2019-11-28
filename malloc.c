@@ -132,9 +132,16 @@ struct meta {
 	uintptr_t maplen:8*sizeof(uintptr_t)-12;
 };
 
+struct meta_area {
+	uint64_t check;
+	struct meta_area *next;
+	struct meta slots[];
+};
+
 static struct meta *free_meta_head;
 static struct meta *avail_meta;
 static size_t avail_meta_count;
+static struct meta_area *meta_area_head, *meta_area_tail;
 static struct meta *active[48];
 static size_t usage_by_class[48];
 
@@ -183,8 +190,15 @@ static struct meta *alloc_meta(void)
 			munmap(p, 2*PAGESIZE);
 			return 0;
 		}
-		avail_meta_count = PAGESIZE/sizeof *m;
-		avail_meta = (void *)(p + PAGESIZE);
+		p += PAGESIZE;
+		if (meta_area_tail) {
+			meta_area_tail->next = (void *)p;
+		} else {
+			meta_area_head = (void *)p;
+		}
+		meta_area_tail = (void *)p;
+		avail_meta_count = (PAGESIZE-sizeof *meta_area_tail)/sizeof *m;
+		avail_meta = meta_area_tail->slots;
 	}
 	avail_meta_count--;
 	m = avail_meta++;
@@ -604,6 +618,19 @@ static void print_group_list(FILE *f, struct meta *h)
 	while ((m=m->next)!=h);
 }
 
+static void print_full_groups(FILE *f)
+{
+	struct meta_area *p;
+	struct meta *m;
+	for (p=meta_area_head; p; p=p->next) {
+		for (int i=0; i<(PAGESIZE-sizeof *p)/sizeof *m; i++) {
+			m = &p->slots[i];
+			if (m->mem && !m->avail_mask && !m->freed_mask)
+				print_group(f, m);
+		}
+	}
+}
+
 void dump_heap(FILE *f)
 {
 	wrlock();
@@ -611,8 +638,8 @@ void dump_heap(FILE *f)
 	fprintf(f, "free meta records:\n");
 	print_group_list(f, free_meta_head);
 
-//	fprintf(f, "entirely filled, inactive groups:\n");
-//	print_group_list(f, full_groups_head);
+	fprintf(f, "entirely filled, inactive groups:\n");
+	print_full_groups(f);
 
 	fprintf(f, "free groups by size class:\n");
 	for (int i=0; i<48; i++) {
