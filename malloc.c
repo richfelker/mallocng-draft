@@ -373,7 +373,7 @@ static struct meta *alloc_group(int sc)
 		       (!want_mmap || size*cnt-16 > PAGESIZE))
 			cnt >>= 1;
 	}
-	if (size*cnt+16*cnt >= PAGESIZE) {
+	if (size*cnt+16 >= PAGESIZE/2) {
 		size_t needed = size*cnt + sizeof(struct group);
 		needed += -needed & (PAGESIZE-1);
 		p = mmap(0, needed, PROT_READ|PROT_WRITE, MAP_PRIVATE|MAP_ANON, -1, 0);
