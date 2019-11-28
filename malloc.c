@@ -596,6 +596,47 @@ size_t malloc_usable_size(void *p)
 	return get_nominal_size(p, end);
 }
 
+void *memalign(size_t align, size_t len)
+{
+	if ((align & -align) != align) {
+		errno = EINVAL;
+		return 0;
+	}
+
+	if (len > SIZE_MAX - align) {
+		errno = ENOMEM;
+		return 0;
+	}
+
+	if (align <= 16) return malloc(len);
+
+	unsigned char *p = malloc(len + align - 1);
+	struct meta *g = get_meta(p);
+	int idx = get_slot_index(p);
+	size_t stride = get_stride(g);
+	unsigned char *end = g->mem->storage + stride*(idx+1) - 4;
+
+	p += -(uintptr_t)p & (align-1);
+	*(uint16_t *)(p-2) = (p-g->mem->storage)/16U;
+	p[-3] = idx;
+	set_size(p, end, len);
+	return p;
+}
+
+void *aligned_alloc(size_t align, size_t len)
+{
+	return memalign(len, align);
+}
+
+int posix_memalign(void **res, size_t align, size_t len)
+{
+	if (align < sizeof(void *)) return EINVAL;
+	void *mem = memalign(align, len);
+	if (!mem) return errno;
+	*res = mem;
+	return 0;
+}
+
 #include <stdio.h>
 
 static void print_group(FILE *f, struct meta *g)
