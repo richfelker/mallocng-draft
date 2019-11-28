@@ -311,12 +311,12 @@ static size_t get_stride(struct meta *g)
 static void set_size(unsigned char *p, unsigned char *end, size_t n)
 {
 	int reserved = end-p-n;
+	if (reserved) end[-reserved] = 0;
 	if (reserved >= 5) {
 		*(uint32_t *)(end-4) = reserved;
 		end[-5] = 0;
 		reserved = 5;
 	}
-	if (reserved) end[-reserved] = 0;
 	p[-3] = (p[-3]&31) + (reserved<<5);
 }
 
