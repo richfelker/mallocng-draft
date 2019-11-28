@@ -133,7 +133,7 @@ struct meta {
 };
 
 static struct meta builtin_meta[16];
-static struct meta *free_meta_head, *full_groups_head;
+static struct meta *free_meta_head;
 static struct meta *avail_meta = builtin_meta;
 static size_t avail_meta_count = sizeof builtin_meta / sizeof *builtin_meta;
 static struct meta *active[48];
@@ -209,7 +209,6 @@ static uint32_t try_avail(struct meta **pm)
 		if (!m) return 0;
 		if (!m->freed_mask) {
 			dequeue(pm, m);
-			queue(&full_groups_head, m);
 			m = *pm;
 			if (!m) return 0;
 		} else {
@@ -417,7 +416,6 @@ void *malloc(size_t n)
 			return 0;
 		}
 		m->avail_mask = m->freed_mask = 0;
-		queue(&full_groups_head, m);
 		cur = m;
 		first = 1;
 		goto success;
@@ -468,24 +466,19 @@ static void nontrivial_free(struct meta *g, int i, uint32_t mask)
 	if (!mask) {
 		// might still be active, or may be on full groups list
 		if (active[sc] != g) {
-			dequeue(&full_groups_head, g);
+			assert(!g->prev && !g->next);
 			queue(&active[sc], g);
 		}
 	} else if (mask+self == (2u<<g->last_idx)-1 && (g->maplen || g->freeable)) {
 		// FIXME: decide whether to free the whole group
-		// hack because we don't know what list it's on to call dequeue
-		if (active[sc]==g) {
-			if (g->next != g) {
-				struct meta *m = g->next;
-				active[sc] = m;
+		if (sc <= 48) {
+			int activate_new = (active[sc]==g);
+			dequeue(&active[sc], g);
+			if (activate_new && active[sc]) {
+				struct meta *m = active[sc];
 				m->avail_mask = a_swap(&m->freed_mask, 0);
-			} else {
-				active[sc] = 0;
 			}
 		}
-		// may not be on here, but if it was instead on active[sc] the
-		// above already covered it.
-		dequeue(&full_groups_head, g);
 		free_group(g);
 		return;
 	}
@@ -515,7 +508,6 @@ void free(void *p)
 		assert(g->sizeclass==63 && g->maplen && !g->last_idx);
 		munmap(g->mem, g->maplen*4096);
 		wrlock();
-		dequeue(&full_groups_head, g);
 		free_meta(g);
 		unlock();
 		return;
@@ -620,8 +612,8 @@ void dump_heap(FILE *f)
 	fprintf(f, "free meta records:\n");
 	print_group_list(f, free_meta_head);
 
-	fprintf(f, "entirely filled, inactive groups:\n");
-	print_group_list(f, full_groups_head);
+//	fprintf(f, "entirely filled, inactive groups:\n");
+//	print_group_list(f, full_groups_head);
 
 	fprintf(f, "free groups by size class:\n");
 	for (int i=0; i<48; i++) {
