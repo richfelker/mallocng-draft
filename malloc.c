@@ -271,7 +271,7 @@ static size_t get_nominal_size(const unsigned char *p, const unsigned char *end)
 	return end-reserved-p;
 }
 
-static void nontrivial_free(struct meta *, int, uint32_t);
+static void nontrivial_free(struct meta *, int);
 
 static void free_group(struct meta *g)
 {
@@ -285,7 +285,7 @@ static void free_group(struct meta *g)
 		void *p = g->mem;
 		struct meta *m = get_meta(p);
 		int idx = get_slot_index(p);
-		nontrivial_free(m, idx, m->freed_mask);
+		nontrivial_free(m, idx);
 	}
 	free_meta(g);
 }
@@ -472,10 +472,11 @@ fail:
 	return 0;
 }
 
-static void nontrivial_free(struct meta *g, int i, uint32_t mask)
+static void nontrivial_free(struct meta *g, int i)
 {
 	uint32_t self = 1u<<i;
 	int sc = g->sizeclass;
+	uint32_t mask = g->freed_mask;
 	if (!mask) {
 		// might still be active, or may be on full groups list
 		if (active[sc] != g) {
@@ -527,7 +528,7 @@ void free(void *p)
 	}
 
 	wrlock();
-	nontrivial_free(g, idx, mask);
+	nontrivial_free(g, idx);
 	unlock();
 }
 
