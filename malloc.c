@@ -604,7 +604,7 @@ void *memalign(size_t align, size_t len)
 		return 0;
 	}
 
-	if (len > SIZE_MAX - align) {
+	if (len > SIZE_MAX - align || align >= 1<<20) {
 		errno = ENOMEM;
 		return 0;
 	}
