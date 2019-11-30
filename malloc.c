@@ -548,8 +548,9 @@ void *realloc(void *p, size_t n)
 	size_t avail_size = end-(unsigned char *)p;
 	void *new;
 
-	// fixme: don't do this unless size class doesn't reduce
-	if (n <= avail_size) {
+	// only resize in-place if size class matches
+	if (n <= avail_size && n<MMAP_THRESHOLD
+	    && size_to_class(n)==g->sizeclass) {
 		set_size(p, end, n);
 		return p;
 	}
