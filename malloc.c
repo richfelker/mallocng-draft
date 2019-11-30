@@ -573,7 +573,7 @@ void *realloc(void *p, size_t n)
 
 	new = malloc(n);
 	if (!new) return 0;
-	memcpy(new, p, old_size);
+	memcpy(new, p, n < old_size ? n : old_size);
 	free(p);
 	return new;
 }
