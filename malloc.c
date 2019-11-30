@@ -185,7 +185,7 @@ static struct meta *alloc_meta(void)
 	if (!avail_meta_count) {
 		char *p;
 		p = mmap(0, 2*PAGESIZE, PROT_NONE, MAP_PRIVATE|MAP_ANON, -1, 0);
-		if (!p) return 0;
+		if (p==MAP_FAILED) return 0;
 		if (mprotect(p+PAGESIZE, PAGESIZE, PROT_READ|PROT_WRITE)) {
 			munmap(p, 2*PAGESIZE);
 			return 0;
@@ -296,7 +296,7 @@ static struct meta *alloc_pseudo_group(size_t n)
 	size_t needed = n + 4 + sizeof(struct group);
 	void *p;
 	p = mmap(0, needed, PROT_READ|PROT_WRITE, MAP_PRIVATE|MAP_ANON, -1, 0);
-	if (!p) return 0;
+	if (p==MAP_FAILED) return 0;
 	m = alloc_meta();
 	if (!m) {
 		munmap(p, needed);
@@ -377,7 +377,7 @@ static struct meta *alloc_group(int sc)
 		size_t needed = size*cnt + sizeof(struct group);
 		needed += -needed & (PAGESIZE-1);
 		p = mmap(0, needed, PROT_READ|PROT_WRITE, MAP_PRIVATE|MAP_ANON, -1, 0);
-		if (!p) {
+		if (p==MAP_FAILED) {
 			free_meta(m);
 			return 0;
 		}
