@@ -564,7 +564,7 @@ void *realloc(void *p, size_t n)
 			g->mem = new;
 			g->maplen = needed/4096;
 			p = g->mem->storage + base;
-			end = g->mem->storage + (needed - sizeof *g->mem);
+			end = g->mem->storage + (needed - sizeof *g->mem) - 4;
 			set_size(p, end, n);
 			return p;
 		}
