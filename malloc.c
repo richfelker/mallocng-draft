@@ -560,7 +560,7 @@ void *realloc(void *p, size_t n)
 		size_t base = (unsigned char *)p-start;
 		size_t needed = (n + base + sizeof *g->mem + 4 + 4095) & -4096;
 		new = mremap(g->mem, g->maplen*4096, needed, MREMAP_MAYMOVE);
-		if (new) {
+		if (new!=MAP_FAILED) {
 			g->mem = new;
 			g->maplen = needed/4096;
 			p = g->mem->storage + base;
