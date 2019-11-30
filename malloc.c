@@ -647,9 +647,11 @@ int posix_memalign(void **res, size_t align, size_t len)
 
 static void print_group(FILE *f, struct meta *g)
 {
-	fprintf(f, "%p: %p [%d slots] [class %d (%d)]: ", g, g->mem,
-		g->last_idx+1, g->sizeclass,
-			g->sizeclass>48?g->maplen*4096-16:16*size_classes[g->sizeclass]);
+	size_t size = g->sizeclass>48
+		? g->maplen*4096-16
+		: 16*size_classes[g->sizeclass];
+	fprintf(f, "%p: %p [%d slots] [class %d (%zu)]: ", g, g->mem,
+		g->last_idx+1, g->sizeclass, size);
 	for (int i=0; i<=g->last_idx; i++) {
 		putc((g->avail_mask & (1u<<i)) ? 'a'
 			: (g->freed_mask & (1u<<i)) ? 'f' : '_', f);
