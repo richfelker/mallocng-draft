@@ -372,6 +372,8 @@ static struct meta *alloc_group(int sc)
 		while (i-- && size*cnt > usage_by_class[sc]/2 &&
 		       (!want_mmap || size*cnt-16 > PAGESIZE))
 			cnt >>= 1;
+		while (size*cnt >= 65536*16)
+			cnt >>= 1;
 	}
 	if (size*cnt+16 >= PAGESIZE/2) {
 		size_t needed = size*cnt + sizeof(struct group);
