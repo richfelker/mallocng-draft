@@ -512,6 +512,7 @@ void free(void *p)
 	int idx = get_slot_index(p);
 	get_nominal_size(p, g->mem->storage+get_stride(g)*(idx+1)-4);
 	unsigned mask, self = 1u<<idx, all = (2u<<g->last_idx)-1;
+	((unsigned char *)p)[-3] = 255;
 
 	// atomic free without locking if this is neither first or last slot
 	do {
