@@ -285,6 +285,7 @@ static void free_group(struct meta *g)
 		void *p = g->mem;
 		struct meta *m = get_meta(p);
 		int idx = get_slot_index(p);
+		((unsigned char *)p)[-3] -= 6<<5;
 		nontrivial_free(m, idx);
 	}
 	free_meta(g);
@@ -402,6 +403,7 @@ static struct meta *alloc_group(int sc)
 		}
 		p = enframe(g, a_ctz_32(first), 16*size_classes[j]-4);
 		m->maplen = 0;
+		((unsigned char *)p)[-3] += 6<<5;
 		for (int i=0; i<=cnt; i++)
 			((char *)p)[16+i*size-4] = 0;
 	}
