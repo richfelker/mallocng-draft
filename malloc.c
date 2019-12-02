@@ -291,22 +291,6 @@ static void free_group(struct meta *g)
 	free_meta(g);
 }
 
-static struct meta *make_pseudo_group(void *p, size_t needed)
-{
-	struct meta *m;
-	m = alloc_meta();
-	if (!m) return 0;
-	m->avail_mask = 1;
-	m->freed_mask = 0;
-	m->mem = p;
-	m->mem->meta = m;
-	m->last_idx = 0;
-	m->freeable = 1;
-	m->sizeclass = 63;
-	m->maplen = (needed+4095)/4096;
-	return m;
-}
-
 static size_t get_stride(struct meta *g)
 {
 	if (g->sizeclass >= 48) {
@@ -424,12 +408,18 @@ void *malloc(size_t n)
 			MAP_PRIVATE|MAP_ANON, -1, 0);
 		if (p==MAP_FAILED) return 0;
 		wrlock();
-		struct meta *m = make_pseudo_group(p, needed);
+		struct meta *m = alloc_meta();
 		if (!m) {
 			unlock();
 			munmap(p, needed);
 			return 0;
 		}
+		m->mem = p;
+		m->mem->meta = m;
+		m->last_idx = 0;
+		m->freeable = 1;
+		m->sizeclass = 63;
+		m->maplen = (needed+4095)/4096;
 		m->avail_mask = m->freed_mask = 0;
 		cur = m;
 		first = 1;
