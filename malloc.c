@@ -271,24 +271,32 @@ static size_t get_nominal_size(const unsigned char *p, const unsigned char *end)
 	return end-reserved-p;
 }
 
-static void nontrivial_free(struct meta *, int);
+struct mapinfo {
+	void *base;
+	size_t len;
+};
 
-static void free_group(struct meta *g)
+static struct mapinfo nontrivial_free(struct meta *, int);
+
+static struct mapinfo free_group(struct meta *g)
 {
+	struct mapinfo mi = { 0 };
 	int sc = g->sizeclass;
 	if (sc < 48) {
 		usage_by_class[sc] -= (g->last_idx+1)*size_classes[sc]*16;
 	}
 	if (g->maplen) {
-		munmap(g->mem, g->maplen*4096);
+		mi.base = g->mem;
+		mi.len = g->maplen*4096;
 	} else if (g->freeable) {
 		void *p = g->mem;
 		struct meta *m = get_meta(p);
 		int idx = get_slot_index(p);
 		((unsigned char *)p)[-3] -= 6<<5;
-		nontrivial_free(m, idx);
+		mi = nontrivial_free(m, idx);
 	}
 	free_meta(g);
+	return mi;
 }
 
 static size_t get_stride(struct meta *g)
@@ -464,7 +472,7 @@ fail:
 	return 0;
 }
 
-static void nontrivial_free(struct meta *g, int i)
+static struct mapinfo nontrivial_free(struct meta *g, int i)
 {
 	uint32_t self = 1u<<i;
 	int sc = g->sizeclass;
@@ -485,10 +493,10 @@ static void nontrivial_free(struct meta *g, int i)
 				m->avail_mask = a_swap(&m->freed_mask, 0);
 			}
 		}
-		free_group(g);
-		return;
+		return free_group(g);
 	}
 	a_or(&g->freed_mask, self);
+	return (struct mapinfo){ 0 };
 }
 
 
@@ -521,8 +529,9 @@ void free(void *p)
 	}
 
 	wrlock();
-	nontrivial_free(g, idx);
+	struct mapinfo mi = nontrivial_free(g, idx);
 	unlock();
+	if (mi.len) munmap(mi.base, mi.len);
 }
 
 void *realloc(void *p, size_t n)
