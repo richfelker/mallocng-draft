@@ -438,7 +438,7 @@ void *malloc(size_t n)
 
 	rdlock();
 	cur = active[sc];
-	if (0) for (;;) {
+	for (;;) {
 		mask = cur ? cur->avail_mask : 0;
 		first = mask&-mask;
 		if (!first) break;
