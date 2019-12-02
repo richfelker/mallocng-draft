@@ -291,18 +291,11 @@ static void free_group(struct meta *g)
 	free_meta(g);
 }
 
-static struct meta *alloc_pseudo_group(size_t n)
+static struct meta *make_pseudo_group(void *p, size_t needed)
 {
 	struct meta *m;
-	size_t needed = n + 4 + sizeof(struct group);
-	void *p;
-	p = mmap(0, needed, PROT_READ|PROT_WRITE, MAP_PRIVATE|MAP_ANON, -1, 0);
-	if (p==MAP_FAILED) return 0;
 	m = alloc_meta();
-	if (!m) {
-		munmap(p, needed);
-		return 0;
-	}
+	if (!m) return 0;
 	m->avail_mask = 1;
 	m->freed_mask = 0;
 	m->mem = p;
@@ -426,10 +419,15 @@ void *malloc(size_t n)
 	int sc;
 
 	if (n >= MMAP_THRESHOLD) {
+		size_t needed = n + 4 + sizeof(struct group);
+		void *p = mmap(0, needed, PROT_READ|PROT_WRITE,
+			MAP_PRIVATE|MAP_ANON, -1, 0);
+		if (p==MAP_FAILED) return 0;
 		wrlock();
-		struct meta *m = alloc_pseudo_group(n);
+		struct meta *m = make_pseudo_group(p, needed);
 		if (!m) {
 			unlock();
+			munmap(p, needed);
 			return 0;
 		}
 		m->avail_mask = m->freed_mask = 0;
