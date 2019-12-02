@@ -242,6 +242,7 @@ static int get_slot_index(const unsigned char *p)
 
 static struct meta *get_meta(const unsigned char *p)
 {
+	assert(!((uintptr_t)p & 15));
 	int offset = *(const uint16_t *)(p - 2);
 	int index = get_slot_index(p);
 	assert(!p[-4]);
