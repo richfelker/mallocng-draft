@@ -344,7 +344,7 @@ static struct meta *alloc_group(int sc)
 {
 	size_t size = 16*size_classes[sc];
 	int i = 0, cnt;
-	void *p;
+	unsigned char *p;
 	struct meta *m = alloc_meta();
 	if (!m) return 0;
 	if (sc < 8) {
@@ -388,14 +388,14 @@ static struct meta *alloc_group(int sc)
 		}
 		p = enframe(g, a_ctz_32(first), 16*size_classes[j]-4);
 		m->maplen = 0;
-		((unsigned char *)p)[-3] += 6<<5;
+		p[-3] += 6<<5;
 		for (int i=0; i<=cnt; i++)
-			((char *)p)[16+i*size-4] = 0;
+			p[16+i*size-4] = 0;
 	}
 	usage_by_class[sc] += cnt*size;
 	m->avail_mask = (2u<<(cnt-1))-1;
 	m->freed_mask = 0;
-	m->mem = p;
+	m->mem = (void *)p;
 	m->mem->meta = m;
 	m->last_idx = cnt-1;
 	m->freeable = 1;
