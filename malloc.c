@@ -271,34 +271,6 @@ static size_t get_nominal_size(const unsigned char *p, const unsigned char *end)
 	return end-reserved-p;
 }
 
-struct mapinfo {
-	void *base;
-	size_t len;
-};
-
-static struct mapinfo nontrivial_free(struct meta *, int);
-
-static struct mapinfo free_group(struct meta *g)
-{
-	struct mapinfo mi = { 0 };
-	int sc = g->sizeclass;
-	if (sc < 48) {
-		usage_by_class[sc] -= (g->last_idx+1)*size_classes[sc]*16;
-	}
-	if (g->maplen) {
-		mi.base = g->mem;
-		mi.len = g->maplen*4096;
-	} else if (g->freeable) {
-		void *p = g->mem;
-		struct meta *m = get_meta(p);
-		int idx = get_slot_index(p);
-		((unsigned char *)p)[-3] -= 6<<5;
-		mi = nontrivial_free(m, idx);
-	}
-	free_meta(g);
-	return mi;
-}
-
 static size_t get_stride(struct meta *g)
 {
 	if (g->sizeclass >= 48) {
@@ -338,6 +310,34 @@ static int size_overflows(size_t n)
 		return 1;
 	}
 	return 0;
+}
+
+struct mapinfo {
+	void *base;
+	size_t len;
+};
+
+static struct mapinfo nontrivial_free(struct meta *, int);
+
+static struct mapinfo free_group(struct meta *g)
+{
+	struct mapinfo mi = { 0 };
+	int sc = g->sizeclass;
+	if (sc < 48) {
+		usage_by_class[sc] -= (g->last_idx+1)*size_classes[sc]*16;
+	}
+	if (g->maplen) {
+		mi.base = g->mem;
+		mi.len = g->maplen*4096;
+	} else if (g->freeable) {
+		void *p = g->mem;
+		struct meta *m = get_meta(p);
+		int idx = get_slot_index(p);
+		((unsigned char *)p)[-3] -= 6<<5;
+		mi = nontrivial_free(m, idx);
+	}
+	free_meta(g);
+	return mi;
 }
 
 static struct meta *alloc_group(int sc)
