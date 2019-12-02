@@ -588,7 +588,7 @@ void *calloc(size_t m, size_t n)
 	n *= m;
 	void *p = malloc(n);
 	if (!p) return p;
-	return memset(p, 0, n);
+	return n >= MMAP_THRESHOLD ? p : memset(p, 0, n);
 }
 
 size_t malloc_usable_size(void *p)
