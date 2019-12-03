@@ -365,15 +365,27 @@ static struct meta *alloc_group(int sc)
 			i++;
 		cnt = small_cnt_tab[sc][i];
 	} else {
+		// lookup max number of slots fitting in power-of-two size
+		// from a table. even indices have 3 factors of 2; odd
+		// indices have 4.
 		i = 3 + (sc&1);
 		cnt = med_cnt_tab[sc&3];
-		int want_mmap = (size*cnt+16 >= PAGESIZE);
-		while (i-- && size*cnt > usage_by_class[sc]/2 &&
-		       (!want_mmap || size*cnt-16 > PAGESIZE))
+
+		// reduce cnt to avoid excessive eagar allocation, but
+		// don't round and don't go below 4k. on archs with 4k pages,
+		// this favors mmap over nested groups. on archs with large
+		// pages, it mimics 4k pages with 4k-16 groups.
+		size_t usage = usage_by_class[sc];
+		while (i-- && size*cnt > usage/2 && (size+16)*cnt >= 8160)
 			cnt >>= 1;
+
+		// data structures don't support groups whose slot offsets
+		// in 16-byte units don't fit in 16 bits.
 		while (size*cnt >= 65536*16)
 			cnt >>= 1;
 	}
+	// All choices of size*cnt are "just below" a power of two, so anything
+	// larger than half the page size should be allocated as whole pages.
 	if (size*cnt+16 >= PAGESIZE/2) {
 		size_t needed = size*cnt + sizeof(struct group);
 		needed += -needed & (PAGESIZE-1);
