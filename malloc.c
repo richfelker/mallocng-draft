@@ -17,6 +17,11 @@ static inline int a_ctz_32(uint32_t x)
 	return __builtin_ctz(x);
 }
 
+static inline int a_clz_32(uint32_t x)
+{
+	return __builtin_clz(x);
+}
+
 static inline int a_cas(volatile int *p, int t, int s)
 {
 	return __sync_val_compare_and_swap(p, t, s);
@@ -101,6 +106,12 @@ static int size_to_class(size_t n)
 	n = (n+3)>>4;
 	if (n<10) return n;
 	n++;
+#if 1
+	int i = (28-a_clz_32(n))*4 + 8;
+	if (n>size_classes[i+1]) i+=2;
+	if (n>size_classes[i]) i++;
+	return i;
+#else
 	size_t a = 10, c = sizeof size_classes / sizeof *size_classes - a;
 	while (c) {
 		int v = size_classes[a+c/2];
@@ -114,6 +125,7 @@ static int size_to_class(size_t n)
 		}
 	}
 	return a;
+#endif
 }
 
 struct group {
