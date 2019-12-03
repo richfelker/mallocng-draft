@@ -98,6 +98,7 @@ static const uint8_t small_cnt_tab[][3] = {
 };
 
 static const uint8_t med_cnt_tab[4] = { 28, 24, 20, 32 };
+static const uint8_t med_twos_tab[4] = { 2, 3, 2, 4 };
 
 #define MMAP_THRESHOLD 131052
 
@@ -366,9 +367,9 @@ static struct meta *alloc_group(int sc)
 		cnt = small_cnt_tab[sc][i];
 	} else {
 		// lookup max number of slots fitting in power-of-two size
-		// from a table. even indices have 3 factors of 2; odd
-		// indices have 4.
-		i = 3 + (sc&1);
+		// from a table, along with number of factors of two we
+		// can divide out without a remainder or reaching 1.
+		i = med_twos_tab[sc&3];
 		cnt = med_cnt_tab[sc&3];
 
 		// reduce cnt to avoid excessive eagar allocation, but
