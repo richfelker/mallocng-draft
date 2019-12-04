@@ -474,7 +474,21 @@ void *malloc(size_t n)
 		}
 	}
 	upgradelock();
-//FIXME
+
+	// use coarse size classes initially when there are not yet
+	// any groups of desired size. this allows counts of 2 or 3
+	// to be allocated at first rather than having to start with
+	// 7 or 5, the min counts for even size classes.
+	if (sc>=16 && !(sc&1) && !usage_by_class[sc]) {
+		size_t usage = usage_by_class[sc|1];
+		// if a new group may be allocated, count it toward
+		// usage in deciding if we can use coarse class.
+		if (!active[sc|1] || !active[sc|1]->avail_mask)
+			usage += 3*16*size_classes[sc|1];
+		if (usage <= 6*16*size_classes[sc|1])
+			sc |= 1;
+	}
+
 	if ((first = try_avail(&active[sc]))) {
 		cur = active[sc];
 		goto success;
