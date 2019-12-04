@@ -702,7 +702,7 @@ static void print_full_groups(FILE *f)
 	for (p=meta_area_head; p; p=p->next) {
 		for (int i=0; i<(PAGESIZE-sizeof *p)/sizeof *m; i++) {
 			m = &p->slots[i];
-			if (m->mem && !m->avail_mask && !m->freed_mask)
+			if (m->mem && !m->next)
 				print_group(f, m);
 		}
 	}
