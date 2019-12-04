@@ -372,12 +372,9 @@ static struct meta *alloc_group(int sc)
 		i = med_twos_tab[sc&3];
 		cnt = med_cnt_tab[sc&3];
 
-		// reduce cnt to avoid excessive eagar allocation, but
-		// don't round and don't go below 4k. on archs with 4k pages,
-		// this favors mmap over nested groups. on archs with large
-		// pages, it mimics 4k pages with 4k-16 groups.
+		// reduce cnt to avoid excessive eagar allocation.
 		size_t usage = usage_by_class[sc];
-		while (i-- && size*cnt > usage/2 && (size+16)*cnt >= 8160)
+		while (i-- && size*cnt > usage/2)
 			cnt >>= 1;
 
 		// data structures don't support groups whose slot offsets
