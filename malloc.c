@@ -153,8 +153,9 @@ struct meta_area {
 
 static struct meta *free_meta_head;
 static struct meta *avail_meta;
-static size_t avail_meta_count;
+static size_t avail_meta_count, avail_meta_area_count, meta_alloc_shift;
 static struct meta_area *meta_area_head, *meta_area_tail;
+static unsigned char *avail_meta_areas;
 static struct meta *active[48];
 static size_t usage_by_class[48];
 
@@ -194,16 +195,23 @@ static struct meta *dequeue_head(struct meta **phead)
 static struct meta *alloc_meta(void)
 {
 	struct meta *m;
+	unsigned char *p;
 	if ((m = dequeue_head(&free_meta_head))) return m;
 	if (!avail_meta_count) {
-		char *p;
-		p = mmap(0, 2*PAGESIZE, PROT_NONE, MAP_PRIVATE|MAP_ANON, -1, 0);
-		if (p==MAP_FAILED) return 0;
-		if (mprotect(p+PAGESIZE, PAGESIZE, PROT_READ|PROT_WRITE)) {
-			munmap(p, 2*PAGESIZE);
-			return 0;
+		if (!avail_meta_area_count) {
+			size_t n = 2UL << meta_alloc_shift;
+			p = mmap(0, n*PAGESIZE, PROT_NONE,
+				MAP_PRIVATE|MAP_ANON, -1, 0);
+			if (p==MAP_FAILED) return 0;
+			avail_meta_areas = p + PAGESIZE;
+			avail_meta_area_count = n-1;
+			meta_alloc_shift++;
 		}
-		p += PAGESIZE;
+		p = avail_meta_areas;
+		if (mprotect(p, PAGESIZE, PROT_READ|PROT_WRITE))
+			return 0;
+		avail_meta_area_count--;
+		avail_meta_areas = p + PAGESIZE;
 		if (meta_area_tail) {
 			meta_area_tail->next = (void *)p;
 		} else {
