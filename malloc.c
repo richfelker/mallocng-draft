@@ -271,6 +271,8 @@ static struct meta *get_meta(const unsigned char *p)
 	const struct meta *meta = base->meta;
 	assert(meta->mem == base);
 	assert(index <= meta->last_idx);
+	assert(!(meta->avail_mask & (1u<<index)));
+	assert(!(meta->freed_mask & (1u<<index)));
 	if (meta->sizeclass < 48) {
 		assert(offset >= size_classes[meta->sizeclass]*index);
 		assert(offset < size_classes[meta->sizeclass]*(index+1));
