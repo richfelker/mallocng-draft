@@ -373,8 +373,9 @@ static struct meta *alloc_group(int sc)
 	unsigned char *p;
 	struct meta *m = alloc_meta();
 	if (!m) return 0;
+	size_t usage = usage_by_class[sc];
 	if (sc < 8) {
-		while (i<2 && size*small_cnt_tab[sc][i] > usage_by_class[sc]/2)
+		while (i<2 && size*small_cnt_tab[sc][i] > usage/2)
 			i++;
 		cnt = small_cnt_tab[sc][i];
 	} else {
@@ -385,7 +386,6 @@ static struct meta *alloc_group(int sc)
 		cnt = med_cnt_tab[sc&3];
 
 		// reduce cnt to avoid excessive eagar allocation.
-		size_t usage = usage_by_class[sc];
 		while (i-- && size*cnt > usage/2)
 			cnt >>= 1;
 
