@@ -364,6 +364,8 @@ static struct mapinfo free_group(struct meta *g)
 	return mi;
 }
 
+static uint32_t alloc_slot(int);
+
 static struct meta *alloc_group(int sc)
 {
 	size_t size = 16*size_classes[sc];
@@ -405,20 +407,12 @@ static struct meta *alloc_group(int sc)
 		m->maplen = needed>>12;
 	} else {
 		int j = size_to_class(16+cnt*size-4);
-		uint32_t first = try_avail(&active[j]);
-		struct meta *g;
-		if (first) {
-			g = active[j];
-		} else {
-			g = alloc_group(j);
-			if (!g) {
-				free_meta(m);
-				return 0;
-			}
-			queue(&active[j], g);
-			first = 1;
-			g->avail_mask -= first;
+		uint32_t first = alloc_slot(j);
+		if (!first) {
+			free_meta(m);
+			return 0;
 		}
+		struct meta *g = active[j];
 		p = enframe(g, a_ctz_32(first), 16*size_classes[j]-4);
 		m->maplen = 0;
 		p[-3] = (p[-3]&31) | (6<<5);
@@ -434,6 +428,19 @@ static struct meta *alloc_group(int sc)
 	m->freeable = 1;
 	m->sizeclass = sc;
 	return m;
+}
+
+static uint32_t alloc_slot(int sc)
+{
+	uint32_t first = try_avail(&active[sc]);
+	if (first) return first;
+
+	struct meta *g = alloc_group(sc);
+	if (!g) return 0;
+
+	g->avail_mask--;
+	queue(&active[sc], g);
+	return 1;
 }
 
 void *malloc(size_t n)
@@ -499,24 +506,18 @@ void *malloc(size_t n)
 			sc |= 1;
 	}
 
-	if ((first = try_avail(&active[sc]))) {
-		cur = active[sc];
-		goto success;
+	first = alloc_slot(sc);
+	if (!first) {
+		unlock();
+		return 0;
 	}
-	cur = alloc_group(sc);
-	first = 1;
-	if (!cur) goto fail;
-	cur->avail_mask -= first;
-	queue(&active[sc], cur);
+	cur = active[sc];
 
 success:
 	unlock();
 	struct meta *g = cur;
 	int idx = a_ctz_32(first);
 	return enframe(g, idx, n);
-fail:
-	unlock();
-	return 0;
 }
 
 static struct mapinfo nontrivial_free(struct meta *g, int i)
