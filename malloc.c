@@ -364,7 +364,7 @@ static struct mapinfo free_group(struct meta *g)
 	return mi;
 }
 
-static uint32_t alloc_slot(int);
+static int alloc_slot(int);
 
 static struct meta *alloc_group(int sc)
 {
@@ -407,13 +407,13 @@ static struct meta *alloc_group(int sc)
 		m->maplen = needed>>12;
 	} else {
 		int j = size_to_class(16+cnt*size-4);
-		uint32_t first = alloc_slot(j);
-		if (!first) {
+		int idx = alloc_slot(j);
+		if (idx < 0) {
 			free_meta(m);
 			return 0;
 		}
 		struct meta *g = active[j];
-		p = enframe(g, a_ctz_32(first), 16*size_classes[j]-4);
+		p = enframe(g, idx, 16*size_classes[j]-4);
 		m->maplen = 0;
 		p[-3] = (p[-3]&31) | (6<<5);
 		for (int i=0; i<=cnt; i++)
@@ -430,17 +430,17 @@ static struct meta *alloc_group(int sc)
 	return m;
 }
 
-static uint32_t alloc_slot(int sc)
+static int alloc_slot(int sc)
 {
 	uint32_t first = try_avail(&active[sc]);
-	if (first) return first;
+	if (first) return a_ctz_32(first);
 
 	struct meta *g = alloc_group(sc);
-	if (!g) return 0;
+	if (!g) return -1;
 
 	g->avail_mask--;
 	queue(&active[sc], g);
-	return 1;
+	return 0;
 }
 
 void *malloc(size_t n)
@@ -449,6 +449,7 @@ void *malloc(size_t n)
 	struct meta *cur;
 	uint32_t mask, first;
 	int sc;
+	int idx;
 
 	if (n >= MMAP_THRESHOLD) {
 		size_t needed = n + 4 + sizeof(struct group);
@@ -470,7 +471,7 @@ void *malloc(size_t n)
 		m->maplen = (needed+4095)/4096;
 		m->avail_mask = m->freed_mask = 0;
 		cur = m;
-		first = 1;
+		idx = 0;
 		goto success;
 	}
 
@@ -484,9 +485,11 @@ void *malloc(size_t n)
 		if (!first) break;
 		if (!libc.threads_minus_1) {
 			cur->avail_mask = mask-first;
+			idx = a_ctz_32(first);
 			goto success;
 		}
 		if (a_cas(&cur->avail_mask, mask, mask-first)==mask) {
+			idx = a_ctz_32(first);
 			goto success;
 		}
 	}
@@ -506,8 +509,8 @@ void *malloc(size_t n)
 			sc |= 1;
 	}
 
-	first = alloc_slot(sc);
-	if (!first) {
+	idx = alloc_slot(sc);
+	if (idx < 0) {
 		unlock();
 		return 0;
 	}
@@ -516,7 +519,6 @@ void *malloc(size_t n)
 success:
 	unlock();
 	struct meta *g = cur;
-	int idx = a_ctz_32(first);
 	return enframe(g, idx, n);
 }
 
