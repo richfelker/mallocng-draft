@@ -7,6 +7,7 @@
 #include <sys/mman.h>
 #include <assert.h>
 #include <errno.h>
+#include <unistd.h>
 
 #undef assert
 #define assert(x) do { if (!(x)) __builtin_trap(); } while(0)
@@ -38,6 +39,15 @@ static inline int a_swap(volatile int *p, int v)
 static inline void a_or(volatile int *p, int v)
 {
 	__sync_fetch_and_or(p, v);
+}
+
+static inline size_t get_page_size()
+{
+#ifdef PAGESIZE
+	return PAGESIZE;
+#else
+	return sysconf(_SC_PAGESIZE);
+#endif
 }
 
 #if 1
@@ -196,29 +206,30 @@ static struct meta *alloc_meta(void)
 {
 	struct meta *m;
 	unsigned char *p;
+	size_t pagesize = get_page_size();
 	if ((m = dequeue_head(&free_meta_head))) return m;
 	if (!avail_meta_count) {
 		if (!avail_meta_area_count) {
 			size_t n = 2UL << meta_alloc_shift;
-			p = mmap(0, n*PAGESIZE, PROT_NONE,
+			p = mmap(0, n*pagesize, PROT_NONE,
 				MAP_PRIVATE|MAP_ANON, -1, 0);
 			if (p==MAP_FAILED) return 0;
-			avail_meta_areas = p + PAGESIZE;
+			avail_meta_areas = p + pagesize;
 			avail_meta_area_count = n-1;
 			meta_alloc_shift++;
 		}
 		p = avail_meta_areas;
-		if (mprotect(p, PAGESIZE, PROT_READ|PROT_WRITE))
+		if (mprotect(p, pagesize, PROT_READ|PROT_WRITE))
 			return 0;
 		avail_meta_area_count--;
-		avail_meta_areas = p + PAGESIZE;
+		avail_meta_areas = p + pagesize;
 		if (meta_area_tail) {
 			meta_area_tail->next = (void *)p;
 		} else {
 			meta_area_head = (void *)p;
 		}
 		meta_area_tail = (void *)p;
-		avail_meta_count = (PAGESIZE-sizeof *meta_area_tail)/sizeof *m;
+		avail_meta_count = (pagesize-sizeof *meta_area_tail)/sizeof *m;
 		avail_meta = meta_area_tail->slots;
 	}
 	avail_meta_count--;
@@ -374,6 +385,7 @@ static struct meta *alloc_group(int sc)
 	struct meta *m = alloc_meta();
 	if (!m) return 0;
 	size_t usage = usage_by_class[sc];
+	size_t pagesize = get_page_size();
 	if (sc < 8) {
 		while (i<2 && size*small_cnt_tab[sc][i] > usage/2)
 			i++;
@@ -396,9 +408,9 @@ static struct meta *alloc_group(int sc)
 	}
 	// All choices of size*cnt are "just below" a power of two, so anything
 	// larger than half the page size should be allocated as whole pages.
-	if (size*cnt+16 >= PAGESIZE/2) {
+	if (size*cnt+16 >= pagesize/2) {
 		size_t needed = size*cnt + sizeof(struct group);
-		needed += -needed & (PAGESIZE-1);
+		needed += -needed & (pagesize-1);
 		p = mmap(0, needed, PROT_READ|PROT_WRITE, MAP_PRIVATE|MAP_ANON, -1, 0);
 		if (p==MAP_FAILED) {
 			free_meta(m);
@@ -721,8 +733,9 @@ static void print_full_groups(FILE *f)
 {
 	struct meta_area *p;
 	struct meta *m;
+	size_t pagesize = get_page_size();
 	for (p=meta_area_head; p; p=p->next) {
-		for (int i=0; i<(PAGESIZE-sizeof *p)/sizeof *m; i++) {
+		for (int i=0; i<(pagesize-sizeof *p)/sizeof *m; i++) {
 			m = &p->slots[i];
 			if (m->mem && !m->next)
 				print_group(f, m);
