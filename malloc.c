@@ -446,7 +446,7 @@ static int alloc_slot(int sc)
 void *malloc(size_t n)
 {
 	if (size_overflows(n)) return 0;
-	struct meta *cur;
+	struct meta *g;
 	uint32_t mask, first;
 	int sc;
 	int idx;
@@ -470,7 +470,7 @@ void *malloc(size_t n)
 		m->sizeclass = 63;
 		m->maplen = (needed+4095)/4096;
 		m->avail_mask = m->freed_mask = 0;
-		cur = m;
+		g = m;
 		idx = 0;
 		goto success;
 	}
@@ -478,17 +478,17 @@ void *malloc(size_t n)
 	sc = size_to_class(n);
 
 	rdlock();
-	cur = active[sc];
+	g = active[sc];
 	for (;;) {
-		mask = cur ? cur->avail_mask : 0;
+		mask = g ? g->avail_mask : 0;
 		first = mask&-mask;
 		if (!first) break;
 		if (!libc.threads_minus_1) {
-			cur->avail_mask = mask-first;
+			g->avail_mask = mask-first;
 			idx = a_ctz_32(first);
 			goto success;
 		}
-		if (a_cas(&cur->avail_mask, mask, mask-first)==mask) {
+		if (a_cas(&g->avail_mask, mask, mask-first)==mask) {
 			idx = a_ctz_32(first);
 			goto success;
 		}
@@ -514,11 +514,10 @@ void *malloc(size_t n)
 		unlock();
 		return 0;
 	}
-	cur = active[sc];
+	g = active[sc];
 
 success:
 	unlock();
-	struct meta *g = cur;
 	return enframe(g, idx, n);
 }
 
