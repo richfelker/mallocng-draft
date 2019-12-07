@@ -457,20 +457,19 @@ void *malloc(size_t n)
 			MAP_PRIVATE|MAP_ANON, -1, 0);
 		if (p==MAP_FAILED) return 0;
 		wrlock();
-		struct meta *m = alloc_meta();
-		if (!m) {
+		g = alloc_meta();
+		if (!g) {
 			unlock();
 			munmap(p, needed);
 			return 0;
 		}
-		m->mem = p;
-		m->mem->meta = m;
-		m->last_idx = 0;
-		m->freeable = 1;
-		m->sizeclass = 63;
-		m->maplen = (needed+4095)/4096;
-		m->avail_mask = m->freed_mask = 0;
-		g = m;
+		g->mem = p;
+		g->mem->meta = g;
+		g->last_idx = 0;
+		g->freeable = 1;
+		g->sizeclass = 63;
+		g->maplen = (needed+4095)/4096;
+		g->avail_mask = g->freed_mask = 0;
 		idx = 0;
 		goto success;
 	}
