@@ -494,15 +494,12 @@ void *malloc(size_t n)
 		mask = g ? g->avail_mask : 0;
 		first = mask&-mask;
 		if (!first) break;
-		if (!libc.threads_minus_1) {
+		if (!libc.threads_minus_1)
 			g->avail_mask = mask-first;
-			idx = a_ctz_32(first);
-			goto success;
-		}
-		if (a_cas(&g->avail_mask, mask, mask-first)==mask) {
-			idx = a_ctz_32(first);
-			goto success;
-		}
+		else if (a_cas(&g->avail_mask, mask, mask-first)!=mask)
+			continue;
+		idx = a_ctz_32(first);
+		goto success;
 	}
 	upgradelock();
 
