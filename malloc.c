@@ -579,8 +579,8 @@ void free(void *p)
 
 	/* free individually-mmapped allocation by performing munmap
 	 * before taking the lock, since we are exclusive user. */
-	if (g->sizeclass >= 48) {
-		assert(g->sizeclass==63 && g->maplen && !g->last_idx);
+	if (!g->last_idx) {
+		assert(g->maplen);
 		munmap(g->mem, g->maplen*4096);
 		wrlock();
 		free_meta(g);
