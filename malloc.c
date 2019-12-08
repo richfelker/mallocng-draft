@@ -583,6 +583,8 @@ void free(void *p)
 		assert(g->maplen);
 		munmap(g->mem, g->maplen*4096);
 		wrlock();
+		int sc = g->sizeclass;
+		if (sc < 48) usage_by_class[sc] -= 16*size_classes[sc];
 		free_meta(g);
 		unlock();
 		return;
