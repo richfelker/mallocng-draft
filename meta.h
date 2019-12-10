@@ -2,12 +2,15 @@
 #define MALLOC_META_H
 
 #include <stdint.h>
+#include <errno.h>
 #include "assert.h"
 
 #define size_classes malloc_size_classes
 
 __attribute__((__visibility__("hidden")))
 extern const uint16_t size_classes[];
+
+#define MMAP_THRESHOLD 131052
 
 struct group {
 	struct meta *meta;
@@ -101,6 +104,36 @@ static inline void *enframe(struct meta *g, int idx, size_t n)
 	p[-3] = idx;
 	set_size(p, p+stride-4, n);
 	return p;
+}
+
+static inline int a_ctz_32(uint32_t x)
+{
+	return __builtin_ctz(x);
+}
+
+static inline int a_clz_32(uint32_t x)
+{
+	return __builtin_clz(x);
+}
+
+static inline int size_to_class(size_t n)
+{
+	n = (n+3)>>4;
+	if (n<10) return n;
+	n++;
+	int i = (28-a_clz_32(n))*4 + 8;
+	if (n>size_classes[i+1]) i+=2;
+	if (n>size_classes[i]) i++;
+	return i;
+}
+
+static inline int size_overflows(size_t n)
+{
+	if (n >= SIZE_MAX/2 - 4096) {
+		errno = ENOMEM;
+		return 1;
+	}
+	return 0;
 }
 
 #endif

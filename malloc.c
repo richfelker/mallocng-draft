@@ -12,16 +12,6 @@
 #include "assert.h"
 #include "meta.h"
 
-static inline int a_ctz_32(uint32_t x)
-{
-	return __builtin_ctz(x);
-}
-
-static inline int a_clz_32(uint32_t x)
-{
-	return __builtin_clz(x);
-}
-
 static inline int a_cas(volatile int *p, int t, int s)
 {
 	return __sync_val_compare_and_swap(p, t, s);
@@ -108,19 +98,6 @@ static const uint8_t small_cnt_tab[][3] = {
 
 static const uint8_t med_cnt_tab[4] = { 28, 24, 20, 32 };
 static const uint8_t med_twos_tab[4] = { 2, 3, 2, 4 };
-
-#define MMAP_THRESHOLD 131052
-
-static int size_to_class(size_t n)
-{
-	n = (n+3)>>4;
-	if (n<10) return n;
-	n++;
-	int i = (28-a_clz_32(n))*4 + 8;
-	if (n>size_classes[i+1]) i+=2;
-	if (n>size_classes[i]) i++;
-	return i;
-}
 
 static struct meta *free_meta_head;
 static struct meta *avail_meta;
@@ -229,15 +206,6 @@ static uint32_t try_avail(struct meta **pm)
 	first = mask&-mask;
 	m->avail_mask = mask-first;
 	return first;
-}
-
-static int size_overflows(size_t n)
-{
-	if (n >= SIZE_MAX/2 - 4096) {
-		errno = ENOMEM;
-		return 1;
-	}
-	return 0;
 }
 
 struct mapinfo {
