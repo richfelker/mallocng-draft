@@ -116,26 +116,10 @@ static int size_to_class(size_t n)
 	n = (n+3)>>4;
 	if (n<10) return n;
 	n++;
-#if 1
 	int i = (28-a_clz_32(n))*4 + 8;
 	if (n>size_classes[i+1]) i+=2;
 	if (n>size_classes[i]) i++;
 	return i;
-#else
-	size_t a = 10, c = sizeof size_classes / sizeof *size_classes - a;
-	while (c) {
-		int v = size_classes[a+c/2];
-		if (n<v) {
-			c /= 2;
-		} else if (n>v) {
-			a += c/2+1;
-			c -= c/2+1;
-		} else {
-			return a+c/2;
-		}
-	}
-	return a;
-#endif
 }
 
 static struct meta *free_meta_head;
