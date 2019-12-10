@@ -184,6 +184,7 @@ static struct meta *alloc_meta(void)
 	struct meta *m;
 	unsigned char *p;
 	size_t pagesize = get_page_size();
+	if (pagesize < 4096) pagesize = 4096;
 	if ((m = dequeue_head(&free_meta_head))) return m;
 	if (!avail_meta_count) {
 		if (!avail_meta_area_count) {
@@ -192,21 +193,22 @@ static struct meta *alloc_meta(void)
 				MAP_PRIVATE|MAP_ANON, -1, 0);
 			if (p==MAP_FAILED) return 0;
 			avail_meta_areas = p + pagesize;
-			avail_meta_area_count = n-1;
+			avail_meta_area_count = (n-1)*(pagesize>>12);
 			meta_alloc_shift++;
 		}
 		p = avail_meta_areas;
-		if (mprotect(p, pagesize, PROT_READ|PROT_WRITE))
-			return 0;
+		if (!((uintptr_t)p & (pagesize-1)))
+			if (mprotect(p, pagesize, PROT_READ|PROT_WRITE))
+				return 0;
 		avail_meta_area_count--;
-		avail_meta_areas = p + pagesize;
+		avail_meta_areas = p + 4096;
 		if (meta_area_tail) {
 			meta_area_tail->next = (void *)p;
 		} else {
 			meta_area_head = (void *)p;
 		}
 		meta_area_tail = (void *)p;
-		avail_meta_count = (pagesize-sizeof *meta_area_tail)/sizeof *m;
+		avail_meta_count = (4096-sizeof *meta_area_tail)/sizeof *m;
 		avail_meta = meta_area_tail->slots;
 	}
 	avail_meta_count--;
@@ -584,9 +586,8 @@ static void print_full_groups(FILE *f)
 {
 	struct meta_area *p;
 	struct meta *m;
-	size_t pagesize = get_page_size();
 	for (p=meta_area_head; p; p=p->next) {
-		for (int i=0; i<(pagesize-sizeof *p)/sizeof *m; i++) {
+		for (int i=0; i<(4096-sizeof *p)/sizeof *m; i++) {
 			m = &p->slots[i];
 			if (m->mem && !m->next)
 				print_group(f, m);
