@@ -208,7 +208,8 @@ static struct meta *alloc_meta(void)
 			meta_area_head = (void *)p;
 		}
 		meta_area_tail = (void *)p;
-		avail_meta_count = (4096-sizeof *meta_area_tail)/sizeof *m;
+		avail_meta_count = meta_area_tail->nslots
+			= (4096-sizeof *meta_area_tail)/sizeof *m;
 		avail_meta = meta_area_tail->slots;
 	}
 	avail_meta_count--;
@@ -587,7 +588,7 @@ static void print_full_groups(FILE *f)
 	struct meta_area *p;
 	struct meta *m;
 	for (p=meta_area_head; p; p=p->next) {
-		for (int i=0; i<(4096-sizeof *p)/sizeof *m; i++) {
+		for (int i=0; i<p->nslots; i++) {
 			m = &p->slots[i];
 			if (m->mem && !m->next)
 				print_group(f, m);

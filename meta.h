@@ -28,6 +28,7 @@ struct meta {
 struct meta_area {
 	uint64_t check;
 	struct meta_area *next;
+	int nslots;
 	struct meta slots[];
 };
 
