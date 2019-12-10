@@ -9,9 +9,8 @@
 #include <errno.h>
 #include <unistd.h>
 
-#undef assert
-#define assert(x) do { if (!(x)) __builtin_trap(); } while(0)
-//#define assert(x)
+#include "assert.h"
+#include "meta.h"
 
 static inline int a_ctz_32(uint32_t x)
 {
@@ -82,7 +81,7 @@ static void upgradelock()
 	wrlock();
 }
 
-static const uint16_t size_classes[] = {
+const uint16_t size_classes[] = {
 	1, 2, 3, 4, 5, 6, 7, 8,
 	9, 10, 12, 15,
 	18, 21, 25, 31,
@@ -138,28 +137,6 @@ static int size_to_class(size_t n)
 	return a;
 #endif
 }
-
-struct group {
-	struct meta *meta;
-	char pad[16 - sizeof(struct meta *)];
-	unsigned char storage[];
-};
-
-struct meta {
-	struct meta *prev, *next;
-	struct group *mem;
-	volatile int avail_mask, freed_mask;
-	uintptr_t last_idx:5;
-	uintptr_t freeable:1;
-	uintptr_t sizeclass:6;
-	uintptr_t maplen:8*sizeof(uintptr_t)-12;
-};
-
-struct meta_area {
-	uint64_t check;
-	struct meta_area *next;
-	struct meta slots[];
-};
 
 static struct meta *free_meta_head;
 static struct meta *avail_meta;
@@ -265,77 +242,6 @@ static uint32_t try_avail(struct meta **pm)
 	first = mask&-mask;
 	m->avail_mask = mask-first;
 	return first;
-}
-
-static int get_slot_index(const unsigned char *p)
-{
-	return p[-3] & 31;
-}
-
-static struct meta *get_meta(const unsigned char *p)
-{
-	assert(!((uintptr_t)p & 15));
-	int offset = *(const uint16_t *)(p - 2);
-	int index = get_slot_index(p);
-	assert(!p[-4]);
-	const struct group *base = (const void *)(p - 16*offset - sizeof *base);
-	const struct meta *meta = base->meta;
-	assert(meta->mem == base);
-	assert(index <= meta->last_idx);
-	assert(!(meta->avail_mask & (1u<<index)));
-	assert(!(meta->freed_mask & (1u<<index)));
-	if (meta->sizeclass < 48) {
-		assert(offset >= size_classes[meta->sizeclass]*index);
-		assert(offset < size_classes[meta->sizeclass]*(index+1));
-	} else {
-		assert(meta->sizeclass == 63);
-		assert(offset <= meta->maplen*4096/16 - 1);
-	}
-	return (struct meta *)meta;
-}
-
-static size_t get_nominal_size(const unsigned char *p, const unsigned char *end)
-{
-	size_t reserved = p[-3] >> 5;
-	if (reserved >= 5) {
-		assert(reserved == 5);
-		reserved = *(const uint32_t *)(end-4);
-		assert(reserved >= 5 && !end[-5]);
-	}
-	assert(reserved <= end-p && !*(end-reserved));
-	return end-reserved-p;
-}
-
-static size_t get_stride(struct meta *g)
-{
-	if (g->sizeclass >= 48) {
-		assert(g->sizeclass == 63);
-		return g->maplen*4096 - sizeof(struct group);
-	} else {
-		return 16*size_classes[g->sizeclass];
-	}
-}
-
-static void set_size(unsigned char *p, unsigned char *end, size_t n)
-{
-	int reserved = end-p-n;
-	if (reserved) end[-reserved] = 0;
-	if (reserved >= 5) {
-		*(uint32_t *)(end-4) = reserved;
-		end[-5] = 0;
-		reserved = 5;
-	}
-	p[-3] = (p[-3]&31) + (reserved<<5);
-}
-
-static void *enframe(struct meta *g, int idx, size_t n)
-{
-	size_t stride = get_stride(g);
-	unsigned char *p = g->mem->storage + stride*idx;
-	*(uint16_t *)(p-2) = (p-g->mem->storage)/16U;
-	p[-3] = idx;
-	set_size(p, p+stride-4, n);
-	return p;
 }
 
 static int size_overflows(size_t n)
@@ -648,60 +554,6 @@ void *calloc(size_t m, size_t n)
 	void *p = malloc(n);
 	if (!p) return p;
 	return n >= MMAP_THRESHOLD ? p : memset(p, 0, n);
-}
-
-size_t malloc_usable_size(void *p)
-{
-	struct meta *g = get_meta(p);
-	int idx = get_slot_index(p);
-	size_t stride = get_stride(g);
-	unsigned char *start = g->mem->storage + stride*idx;
-	unsigned char *end = start + stride - 4;
-	return get_nominal_size(p, end);
-}
-
-void *memalign(size_t align, size_t len)
-{
-	if ((align & -align) != align) {
-		errno = EINVAL;
-		return 0;
-	}
-
-	if (len > SIZE_MAX - align || align >= 1<<20) {
-		errno = ENOMEM;
-		return 0;
-	}
-
-	if (align <= 16) return malloc(len);
-
-	unsigned char *p = malloc(len + align - 1);
-	struct meta *g = get_meta(p);
-	int idx = get_slot_index(p);
-	size_t stride = get_stride(g);
-	unsigned char *end = g->mem->storage + stride*(idx+1) - 4;
-	size_t adj = -(uintptr_t)p & (align-1);
-
-	if (!adj) return p;
-	p += adj;
-	*(uint16_t *)(p-2) = (p-g->mem->storage)/16U;
-	p[-3] = idx;
-	p[-4] = 0;
-	set_size(p, end, len);
-	return p;
-}
-
-void *aligned_alloc(size_t align, size_t len)
-{
-	return memalign(len, align);
-}
-
-int posix_memalign(void **res, size_t align, size_t len)
-{
-	if (align < sizeof(void *)) return EINVAL;
-	void *mem = memalign(align, len);
-	if (!mem) return errno;
-	*res = mem;
-	return 0;
 }
 
 #include <stdio.h>
