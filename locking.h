@@ -3,11 +3,8 @@
 
 #include <pthread.h>
 
-#if 1
-static struct {
-	int threads_minus_1;
-} libc = { 1 };
-#endif
+#define MT 1
+#define RDLOCK_IS_EXCLUSIVE 0
 
 __attribute__((__visibility__("hidden")))
 extern pthread_rwlock_t malloc_lock;
@@ -17,20 +14,17 @@ pthread_rwlock_t malloc_lock = PTHREAD_RWLOCK_INITIALIZER
 
 static inline void rdlock()
 {
-	if (libc.threads_minus_1)
-		pthread_rwlock_rdlock(&malloc_lock);
+	if (MT) pthread_rwlock_rdlock(&malloc_lock);
 }
 
 static inline void wrlock()
 {
-	if (libc.threads_minus_1)
-		pthread_rwlock_wrlock(&malloc_lock);
+	if (MT) pthread_rwlock_wrlock(&malloc_lock);
 }
 
 static inline void unlock()
 {
-	if (libc.threads_minus_1)
-		pthread_rwlock_unlock(&malloc_lock);
+	if (MT) pthread_rwlock_unlock(&malloc_lock);
 }
 
 static inline void upgradelock()

@@ -234,7 +234,7 @@ void *malloc(size_t n)
 		mask = g ? g->avail_mask : 0;
 		first = mask&-mask;
 		if (!first) break;
-		if (!libc.threads_minus_1)
+		if (RDLOCK_IS_EXCLUSIVE || !MT)
 			g->avail_mask = mask-first;
 		else if (a_cas(&g->avail_mask, mask, mask-first)!=mask)
 			continue;
