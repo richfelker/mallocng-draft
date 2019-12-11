@@ -38,7 +38,7 @@ static struct mapinfo nontrivial_free(struct meta *g, int i)
 {
 	uint32_t self = 1u<<i;
 	int sc = g->sizeclass;
-	uint32_t mask = g->freed_mask;
+	uint32_t mask = g->freed_mask | g->avail_mask;
 	if (!mask) {
 		// might still be active if there were no allocations
 		// after last available slot was taken.
@@ -68,17 +68,19 @@ void free(void *p)
 	struct meta *g = get_meta(p);
 	int idx = get_slot_index(p);
 	get_nominal_size(p, g->mem->storage+get_stride(g)*(idx+1)-4);
-	unsigned mask, self = 1u<<idx, all = (2u<<g->last_idx)-1;
+	uint32_t self = 1u<<idx, all = (2u<<g->last_idx)-1;
 	((unsigned char *)p)[-3] = 255;
 
 	// atomic free without locking if this is neither first or last slot
 	for (;;) {
-		mask = g->freed_mask;
+		uint32_t freed = g->freed_mask;
+		uint32_t avail = g->avail_mask;
+		uint32_t mask = freed | avail;
 		assert(!(mask&self));
 		if (!mask || mask+self==all) break;
 		if (!MT)
-			g->freed_mask = mask+self;
-		else if (a_cas(&g->freed_mask, mask, mask+self)!=mask)
+			g->freed_mask = freed+self;
+		else if (a_cas(&g->freed_mask, freed, freed+self)!=freed)
 			continue;
 		return;
 	}
