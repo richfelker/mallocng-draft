@@ -1,7 +1,6 @@
 #include <stdlib.h>
 #include <stdint.h>
 #include <limits.h>
-#include <pthread.h>
 #include <string.h>
 #include <sys/mman.h>
 #include <assert.h>
@@ -10,6 +9,9 @@
 
 #include "assert.h"
 #include "meta.h"
+#include "locking.h"
+
+LOCK_OBJ_DEF;
 
 static inline int a_cas(volatile int *p, int t, int s)
 {
@@ -36,38 +38,6 @@ static inline size_t get_page_size()
 #else
 	return sysconf(_SC_PAGESIZE);
 #endif
-}
-
-#if 1
-static struct {
-	int threads_minus_1;
-} libc = { 1 };
-#endif
-
-static pthread_rwlock_t malloc_lock = PTHREAD_RWLOCK_INITIALIZER;
-
-static void rdlock()
-{
-	if (libc.threads_minus_1)
-		pthread_rwlock_rdlock(&malloc_lock);
-}
-
-static void wrlock()
-{
-	if (libc.threads_minus_1)
-		pthread_rwlock_wrlock(&malloc_lock);
-}
-
-static void unlock()
-{
-	if (libc.threads_minus_1)
-		pthread_rwlock_unlock(&malloc_lock);
-}
-
-static void upgradelock()
-{
-	unlock();
-	wrlock();
 }
 
 const uint16_t size_classes[] = {
