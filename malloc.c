@@ -98,13 +98,7 @@ static const uint8_t small_cnt_tab[][3] = {
 static const uint8_t med_cnt_tab[4] = { 28, 24, 20, 32 };
 static const uint8_t med_twos_tab[4] = { 2, 3, 2, 4 };
 
-static struct meta *free_meta_head;
-static struct meta *avail_meta;
-static size_t avail_meta_count, avail_meta_area_count, meta_alloc_shift;
-static struct meta_area *meta_area_head, *meta_area_tail;
-static unsigned char *avail_meta_areas;
-static struct meta *active[48];
-static size_t usage_by_class[48];
+struct malloc_context ctx;
 
 static void queue(struct meta **phead, struct meta *m)
 {
@@ -145,35 +139,35 @@ static struct meta *alloc_meta(void)
 	unsigned char *p;
 	size_t pagesize = get_page_size();
 	if (pagesize < 4096) pagesize = 4096;
-	if ((m = dequeue_head(&free_meta_head))) return m;
-	if (!avail_meta_count) {
-		if (!avail_meta_area_count) {
-			size_t n = 2UL << meta_alloc_shift;
+	if ((m = dequeue_head(&ctx.free_meta_head))) return m;
+	if (!ctx.avail_meta_count) {
+		if (!ctx.avail_meta_area_count) {
+			size_t n = 2UL << ctx.meta_alloc_shift;
 			p = mmap(0, n*pagesize, PROT_NONE,
 				MAP_PRIVATE|MAP_ANON, -1, 0);
 			if (p==MAP_FAILED) return 0;
-			avail_meta_areas = p + pagesize;
-			avail_meta_area_count = (n-1)*(pagesize>>12);
-			meta_alloc_shift++;
+			ctx.avail_meta_areas = p + pagesize;
+			ctx.avail_meta_area_count = (n-1)*(pagesize>>12);
+			ctx.meta_alloc_shift++;
 		}
-		p = avail_meta_areas;
+		p = ctx.avail_meta_areas;
 		if (!((uintptr_t)p & (pagesize-1)))
 			if (mprotect(p, pagesize, PROT_READ|PROT_WRITE))
 				return 0;
-		avail_meta_area_count--;
-		avail_meta_areas = p + 4096;
-		if (meta_area_tail) {
-			meta_area_tail->next = (void *)p;
+		ctx.avail_meta_area_count--;
+		ctx.avail_meta_areas = p + 4096;
+		if (ctx.meta_area_tail) {
+			ctx.meta_area_tail->next = (void *)p;
 		} else {
-			meta_area_head = (void *)p;
+			ctx.meta_area_head = (void *)p;
 		}
-		meta_area_tail = (void *)p;
-		avail_meta_count = meta_area_tail->nslots
-			= (4096-sizeof *meta_area_tail)/sizeof *m;
-		avail_meta = meta_area_tail->slots;
+		ctx.meta_area_tail = (void *)p;
+		ctx.avail_meta_count = ctx.meta_area_tail->nslots
+			= (4096-sizeof(struct meta_area))/sizeof *m;
+		ctx.avail_meta = ctx.meta_area_tail->slots;
 	}
-	avail_meta_count--;
-	m = avail_meta++;
+	ctx.avail_meta_count--;
+	m = ctx.avail_meta++;
 	m->prev = m->next = 0;
 	return m;
 }
@@ -181,7 +175,7 @@ static struct meta *alloc_meta(void)
 static void free_meta(struct meta *m)
 {
 	*m = (struct meta){0};
-	queue(&free_meta_head, m);
+	queue(&ctx.free_meta_head, m);
 }
 
 static uint32_t try_avail(struct meta **pm)
@@ -219,7 +213,7 @@ static struct mapinfo free_group(struct meta *g)
 	struct mapinfo mi = { 0 };
 	int sc = g->sizeclass;
 	if (sc < 48) {
-		usage_by_class[sc] -= (g->last_idx+1)*size_classes[sc]*16;
+		ctx.usage_by_class[sc] -= (g->last_idx+1)*size_classes[sc]*16;
 	}
 	if (g->maplen) {
 		mi.base = g->mem;
@@ -244,7 +238,7 @@ static struct meta *alloc_group(int sc)
 	unsigned char *p;
 	struct meta *m = alloc_meta();
 	if (!m) return 0;
-	size_t usage = usage_by_class[sc];
+	size_t usage = ctx.usage_by_class[sc];
 	size_t pagesize = get_page_size();
 	if (sc < 8) {
 		while (i<2 && size*small_cnt_tab[sc][i] > usage/2)
@@ -284,14 +278,14 @@ static struct meta *alloc_group(int sc)
 			free_meta(m);
 			return 0;
 		}
-		struct meta *g = active[j];
+		struct meta *g = ctx.active[j];
 		p = enframe(g, idx, 16*size_classes[j]-4);
 		m->maplen = 0;
 		p[-3] = (p[-3]&31) | (6<<5);
 		for (int i=0; i<=cnt; i++)
 			p[16+i*size-4] = 0;
 	}
-	usage_by_class[sc] += cnt*size;
+	ctx.usage_by_class[sc] += cnt*size;
 	m->avail_mask = (2u<<(cnt-1))-1;
 	m->freed_mask = 0;
 	m->mem = (void *)p;
@@ -304,14 +298,14 @@ static struct meta *alloc_group(int sc)
 
 static int alloc_slot(int sc)
 {
-	uint32_t first = try_avail(&active[sc]);
+	uint32_t first = try_avail(&ctx.active[sc]);
 	if (first) return a_ctz_32(first);
 
 	struct meta *g = alloc_group(sc);
 	if (!g) return -1;
 
 	g->avail_mask--;
-	queue(&active[sc], g);
+	queue(&ctx.active[sc], g);
 	return 0;
 }
 
@@ -349,7 +343,7 @@ void *malloc(size_t n)
 	sc = size_to_class(n);
 
 	rdlock();
-	g = active[sc];
+	g = ctx.active[sc];
 	for (;;) {
 		mask = g ? g->avail_mask : 0;
 		first = mask&-mask;
@@ -367,11 +361,11 @@ void *malloc(size_t n)
 	// any groups of desired size. this allows counts of 2 or 3
 	// to be allocated at first rather than having to start with
 	// 7 or 5, the min counts for even size classes.
-	if (sc>=16 && !(sc&1) && !usage_by_class[sc]) {
-		size_t usage = usage_by_class[sc|1];
+	if (sc>=16 && !(sc&1) && !ctx.usage_by_class[sc]) {
+		size_t usage = ctx.usage_by_class[sc|1];
 		// if a new group may be allocated, count it toward
 		// usage in deciding if we can use coarse class.
-		if (!active[sc|1] || !active[sc|1]->avail_mask)
+		if (!ctx.active[sc|1] || !ctx.active[sc|1]->avail_mask)
 			usage += 3*16*size_classes[sc|1];
 		if (usage <= 6*16*size_classes[sc|1])
 			sc |= 1;
@@ -382,7 +376,7 @@ void *malloc(size_t n)
 		unlock();
 		return 0;
 	}
-	g = active[sc];
+	g = ctx.active[sc];
 
 success:
 	unlock();
@@ -396,17 +390,17 @@ static struct mapinfo nontrivial_free(struct meta *g, int i)
 	uint32_t mask = g->freed_mask;
 	if (!mask) {
 		// might still be active, or may be on full groups list
-		if (active[sc] != g) {
+		if (ctx.active[sc] != g) {
 			assert(!g->prev && !g->next);
-			queue(&active[sc], g);
+			queue(&ctx.active[sc], g);
 		}
 	} else if (mask+self == (2u<<g->last_idx)-1 && (g->maplen || g->freeable)) {
 		// FIXME: decide whether to free the whole group
 		if (sc <= 48) {
-			int activate_new = (active[sc]==g);
-			dequeue(&active[sc], g);
-			if (activate_new && active[sc]) {
-				struct meta *m = active[sc];
+			int activate_new = (ctx.active[sc]==g);
+			dequeue(&ctx.active[sc], g);
+			if (activate_new && ctx.active[sc]) {
+				struct meta *m = ctx.active[sc];
 				m->avail_mask = a_swap(&m->freed_mask, 0);
 			}
 		}
@@ -441,7 +435,7 @@ void free(void *p)
 		munmap(g->mem, g->maplen*4096);
 		wrlock();
 		int sc = g->sizeclass;
-		if (sc < 48) usage_by_class[sc] -= 16*size_classes[sc];
+		if (sc < 48) ctx.usage_by_class[sc] -= 16*size_classes[sc];
 		free_meta(g);
 		unlock();
 		return;
@@ -493,7 +487,7 @@ static void print_full_groups(FILE *f)
 {
 	struct meta_area *p;
 	struct meta *m;
-	for (p=meta_area_head; p; p=p->next) {
+	for (p=ctx.meta_area_head; p; p=p->next) {
 		for (int i=0; i<p->nslots; i++) {
 			m = &p->slots[i];
 			if (m->mem && !m->next)
@@ -507,16 +501,16 @@ void dump_heap(FILE *f)
 	wrlock();
 
 	fprintf(f, "free meta records:\n");
-	print_group_list(f, free_meta_head);
+	print_group_list(f, ctx.free_meta_head);
 
 	fprintf(f, "entirely filled, inactive groups:\n");
 	print_full_groups(f);
 
 	fprintf(f, "free groups by size class:\n");
 	for (int i=0; i<48; i++) {
-		if (!active[i]) continue;
-		fprintf(f, "-- class %d (%d) (%zu used) --\n", i, size_classes[i]*16, usage_by_class[i]);
-		print_group_list(f, active[i]);
+		if (!ctx.active[i]) continue;
+		fprintf(f, "-- class %d (%d) (%zu used) --\n", i, size_classes[i]*16, ctx.usage_by_class[i]);
+		print_group_list(f, ctx.active[i]);
 	}
 
 	unlock();

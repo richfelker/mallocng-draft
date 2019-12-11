@@ -5,7 +5,10 @@
 #include <errno.h>
 #include "assert.h"
 
+// use macros to appropriately namespace these. for libc,
+// the names would be changed to lie in __ namespace.
 #define size_classes malloc_size_classes
+#define ctx malloc_context
 
 __attribute__((__visibility__("hidden")))
 extern const uint16_t size_classes[];
@@ -34,6 +37,19 @@ struct meta_area {
 	int nslots;
 	struct meta slots[];
 };
+
+struct malloc_context {
+	struct meta *free_meta_head;
+	struct meta *avail_meta;
+	size_t avail_meta_count, avail_meta_area_count, meta_alloc_shift;
+	struct meta_area *meta_area_head, *meta_area_tail;
+	unsigned char *avail_meta_areas;
+	struct meta *active[48];
+	size_t usage_by_class[48];
+};
+
+__attribute__((__visibility__("hidden")))
+extern struct malloc_context ctx;
 
 static inline int get_slot_index(const unsigned char *p)
 {
