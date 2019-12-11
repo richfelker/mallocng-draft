@@ -72,11 +72,13 @@ void free(void *p)
 	((unsigned char *)p)[-3] = 255;
 
 	// atomic free without locking if this is neither first or last slot
-	do {
+	for (;;) {
 		mask = g->freed_mask;
 		assert(!(mask&self));
-	} while (mask && mask+self!=all && a_cas(&g->freed_mask, mask, mask+self)!=mask);
-	if (mask && mask+self!=all) return;
+		if (!mask || mask+self==all) break;
+		if (a_cas(&g->freed_mask, mask, mask+self)==mask)
+			return;
+	}
 
 	/* free individually-mmapped allocation by performing munmap
 	 * before taking the lock, since we are exclusive user. */
