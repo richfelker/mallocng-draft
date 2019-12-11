@@ -40,9 +40,9 @@ static struct mapinfo nontrivial_free(struct meta *g, int i)
 	int sc = g->sizeclass;
 	uint32_t mask = g->freed_mask;
 	if (!mask) {
-		// might still be active, or may be on full groups list
+		// might still be active if there were no allocations
+		// after last available slot was taken.
 		if (ctx.active[sc] != g) {
-			assert(!g->prev && !g->next);
 			queue(&ctx.active[sc], g);
 		}
 	} else if (mask+self == (2u<<g->last_idx)-1 && (g->maplen || g->freeable)) {
