@@ -39,15 +39,10 @@ static struct mapinfo nontrivial_free(struct meta *g, int i)
 	uint32_t self = 1u<<i;
 	int sc = g->sizeclass;
 	uint32_t mask = g->freed_mask | g->avail_mask;
-	if (!mask) {
-		// might still be active if there were no allocations
-		// after last available slot was taken.
-		if (ctx.active[sc] != g) {
-			queue(&ctx.active[sc], g);
-		}
-	} else if (mask+self == (2u<<g->last_idx)-1 && (g->maplen || g->freeable)) {
+
+	if (mask+self == (2u<<g->last_idx)-1 && (g->maplen || g->freeable)) {
 		// FIXME: decide whether to free the whole group
-		if (sc <= 48) {
+		if (sc < 48) {
 			int activate_new = (ctx.active[sc]==g);
 			dequeue(&ctx.active[sc], g);
 			if (activate_new && ctx.active[sc]) {
@@ -56,6 +51,13 @@ static struct mapinfo nontrivial_free(struct meta *g, int i)
 			}
 		}
 		return free_group(g);
+	} else if (!mask) {
+		assert(sc < 48);
+		// might still be active if there were no allocations
+		// after last available slot was taken.
+		if (ctx.active[sc] != g) {
+			queue(&ctx.active[sc], g);
+		}
 	}
 	a_or(&g->freed_mask, self);
 	return (struct mapinfo){ 0 };
@@ -82,19 +84,6 @@ void free(void *p)
 			g->freed_mask = freed+self;
 		else if (a_cas(&g->freed_mask, freed, freed+self)!=freed)
 			continue;
-		return;
-	}
-
-	/* free individually-mmapped allocation by performing munmap
-	 * before taking the lock, since we are exclusive user. */
-	if (!g->last_idx) {
-		assert(g->maplen);
-		munmap(g->mem, g->maplen*4096);
-		wrlock();
-		int sc = g->sizeclass;
-		if (sc < 48) ctx.usage_by_class[sc] -= 16*size_classes[sc];
-		free_meta(g);
-		unlock();
 		return;
 	}
 
