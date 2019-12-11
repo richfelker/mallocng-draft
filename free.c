@@ -76,8 +76,11 @@ void free(void *p)
 		mask = g->freed_mask;
 		assert(!(mask&self));
 		if (!mask || mask+self==all) break;
-		if (a_cas(&g->freed_mask, mask, mask+self)==mask)
-			return;
+		if (!MT)
+			g->freed_mask = mask+self;
+		else if (a_cas(&g->freed_mask, mask, mask+self)!=mask)
+			continue;
+		return;
 	}
 
 	/* free individually-mmapped allocation by performing munmap
