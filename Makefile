@@ -8,7 +8,7 @@ CFLAGS = -Wall -O2 -ffreestanding -fno-asynchronous-unwind-tables -fno-align-jum
 
 all: $(ALL)
 
-$(OBJS): meta.h assert.h
+$(OBJS): meta.h assert.h atomic.h locking.h
 
 clean:
 	rm -f $(ALL) $(OBJS)
