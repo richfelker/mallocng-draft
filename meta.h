@@ -51,6 +51,45 @@ struct malloc_context {
 __attribute__((__visibility__("hidden")))
 extern struct malloc_context ctx;
 
+static inline void queue(struct meta **phead, struct meta *m)
+{
+	assert(!m->next && !m->prev);
+	if (*phead) {
+		struct meta *head = *phead;
+		m->next = head;
+		m->prev = head->prev;
+		m->next->prev = m->prev->next = m;
+	} else {
+		m->prev = m->next = m;
+		*phead = m;
+	}
+}
+
+static inline void dequeue(struct meta **phead, struct meta *m)
+{
+	if (m->next != m) {
+		m->prev->next = m->next;
+		m->next->prev = m->prev;
+		if (*phead == m) *phead = m->next;
+	} else {
+		*phead = 0;
+	}
+	m->prev = m->next = 0;
+}
+
+static inline struct meta *dequeue_head(struct meta **phead)
+{
+	struct meta *m = *phead;
+	if (m) dequeue(phead, m);
+	return m;
+}
+
+static inline void free_meta(struct meta *m)
+{
+	*m = (struct meta){0};
+	queue(&ctx.free_meta_head, m);
+}
+
 static inline int get_slot_index(const unsigned char *p)
 {
 	return p[-3] & 31;

@@ -53,39 +53,6 @@ static const uint8_t med_twos_tab[4] = { 2, 3, 2, 4 };
 
 struct malloc_context ctx;
 
-static void queue(struct meta **phead, struct meta *m)
-{
-	assert(!m->next && !m->prev);
-	if (*phead) {
-		struct meta *head = *phead;
-		m->next = head;
-		m->prev = head->prev;
-		m->next->prev = m->prev->next = m;
-	} else {
-		m->prev = m->next = m;
-		*phead = m;
-	}
-}
-
-static void dequeue(struct meta **phead, struct meta *m)
-{
-	if (m->next != m) {
-		m->prev->next = m->next;
-		m->next->prev = m->prev;
-		if (*phead == m) *phead = m->next;
-	} else {
-		*phead = 0;
-	}
-	m->prev = m->next = 0;
-}
-
-static struct meta *dequeue_head(struct meta **phead)
-{
-	struct meta *m = *phead;
-	if (m) dequeue(phead, m);
-	return m;
-}
-
 static struct meta *alloc_meta(void)
 {
 	struct meta *m;
@@ -123,12 +90,6 @@ static struct meta *alloc_meta(void)
 	m = ctx.avail_meta++;
 	m->prev = m->next = 0;
 	return m;
-}
-
-static void free_meta(struct meta *m)
-{
-	*m = (struct meta){0};
-	queue(&ctx.free_meta_head, m);
 }
 
 static uint32_t try_avail(struct meta **pm)
