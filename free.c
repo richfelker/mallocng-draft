@@ -34,14 +34,52 @@ static struct mapinfo free_group(struct meta *g)
 	return mi;
 }
 
+static int okay_to_free(struct meta *g)
+{
+	if (!g->freeable) return 0;
+
+	// always free individual mmaps
+	if (!g->last_idx) return 1;
+
+	// always free groups allocated inside another group's slot
+	// since recreating them should not be expensive and they
+	// might be blocking freeing of a much larger group.
+	if (!g->maplen) return 1;
+
+	// if there is another non-full group, free this one to
+	// consolidate future allocations, reduce fragmentation.
+	if (g->next != g) return 1;
+
+	int sc = g->sizeclass;
+	size_t size = 16*size_classes[sc]*(g->last_idx+1);
+	size_t usage = ctx.usage_by_class[sc];
+
+	// keep groups with low relative usage unless they are
+	// low-count, in which case we'd rather replace them
+	// with full-count groups.
+	if (4*size <= usage) {
+		// FIXME: improve this logic. roughly, if this isn't a
+		// max-count group and usage is high enough to warrant
+		// allocation of a higher-count group...
+		if (g->last_idx+1 < 20 && 2*size <= (usage-size)/2)
+			return 1;
+		return 0;
+	}
+
+	// avoid freeing last group in size classes so small
+	// that memory usage is not significant.
+	if (sc < 24) return 0;
+
+	return 1;
+}
+
 static struct mapinfo nontrivial_free(struct meta *g, int i)
 {
 	uint32_t self = 1u<<i;
 	int sc = g->sizeclass;
 	uint32_t mask = g->freed_mask | g->avail_mask;
 
-	if (mask+self == (2u<<g->last_idx)-1 && (g->maplen || g->freeable)) {
-		// FIXME: decide whether to free the whole group
+	if (mask+self == (2u<<g->last_idx)-1 && okay_to_free(g)) {
 		if (sc < 48) {
 			int activate_new = (ctx.active[sc]==g);
 			dequeue(&ctx.active[sc], g);
