@@ -2,5 +2,5 @@
 
 void *aligned_alloc(size_t align, size_t len)
 {
-	return memalign(len, align);
+	return memalign(align, len);
 }
