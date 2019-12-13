@@ -39,6 +39,8 @@ struct meta_area {
 };
 
 struct malloc_context {
+	uint64_t secret;
+	int init_done;
 	struct meta *free_meta_head;
 	struct meta *avail_meta;
 	size_t avail_meta_count, avail_meta_area_count, meta_alloc_shift;
@@ -107,6 +109,8 @@ static inline struct meta *get_meta(const unsigned char *p)
 	assert(index <= meta->last_idx);
 	assert(!(meta->avail_mask & (1u<<index)));
 	assert(!(meta->freed_mask & (1u<<index)));
+	const struct meta_area *area = (void *)((uintptr_t)meta & -4096);
+	assert(area->check == ctx.secret);
 	if (meta->sizeclass < 48) {
 		assert(offset >= size_classes[meta->sizeclass]*index);
 		assert(offset < size_classes[meta->sizeclass]*(index+1));

@@ -14,6 +14,13 @@
 
 LOCK_OBJ_DEF;
 
+static inline uint64_t get_random_secret()
+{
+	uint64_t secret;
+	getentropy(&secret, sizeof secret);
+	return secret;
+}
+
 static inline size_t get_page_size()
 {
 #ifdef PAGESIZE
@@ -57,6 +64,10 @@ static struct meta *alloc_meta(void)
 {
 	struct meta *m;
 	unsigned char *p;
+	if (!ctx.init_done) {
+		ctx.secret = get_random_secret();
+		ctx.init_done = 1;
+	}
 	size_t pagesize = get_page_size();
 	if (pagesize < 4096) pagesize = 4096;
 	if ((m = dequeue_head(&ctx.free_meta_head))) return m;
@@ -82,6 +93,7 @@ static struct meta *alloc_meta(void)
 			ctx.meta_area_head = (void *)p;
 		}
 		ctx.meta_area_tail = (void *)p;
+		ctx.meta_area_tail->check = ctx.secret;
 		ctx.avail_meta_count = ctx.meta_area_tail->nslots
 			= (4096-sizeof(struct meta_area))/sizeof *m;
 		ctx.avail_meta = ctx.meta_area_tail->slots;
