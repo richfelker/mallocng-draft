@@ -37,12 +37,23 @@ static void print_full_groups(FILE *f)
 	}
 }
 
+static size_t count_list(struct meta *h)
+{
+	size_t cnt = 0;
+	struct meta *m = h;
+	if (!m) return 0;
+	do cnt++;
+	while ((m=m->next)!=h);
+	return cnt;
+}
+
 void dump_heap(FILE *f)
 {
 	wrlock();
 
-	fprintf(f, "free meta records:\n");
-	print_group_list(f, ctx.free_meta_head);
+	fprintf(f, "free meta records: %zu\n", count_list(ctx.free_meta_head));
+	fprintf(f, "available new meta records: %zu\n", ctx.avail_meta_count);
+	fprintf(f, "available new meta areas: %zu\n", ctx.avail_meta_area_count);
 
 	fprintf(f, "entirely filled, inactive groups:\n");
 	print_full_groups(f);
