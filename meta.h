@@ -155,9 +155,22 @@ static inline void *enframe(struct meta *g, int idx, size_t n)
 {
 	size_t stride = get_stride(g);
 	unsigned char *p = g->mem->storage + stride*idx;
+	unsigned char *end = p+stride-4;
+	// cycle offset within slot to increase interval to address
+	// reuse, facilitate trapping double-free.
+	int off = *(uint16_t *)(p-2) + 1;
+	if (16*off <= stride-4-n) {
+		// store offset in unused header at offset zero
+		// if enframing at non-zero offset.
+		*(uint16_t *)(p-2) = off;
+		p += 16*off;
+		// for nonzero offset there is no permanent check
+		// byte, so make one.
+		p[-4] = 0;
+	}
 	*(uint16_t *)(p-2) = (p-g->mem->storage)/16U;
 	p[-3] = idx;
-	set_size(p, p+stride-4, n);
+	set_size(p, end, n);
 	return p;
 }
 

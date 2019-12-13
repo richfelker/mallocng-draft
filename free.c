@@ -110,6 +110,9 @@ void free(void *p)
 	get_nominal_size(p, g->mem->storage+get_stride(g)*(idx+1)-4);
 	uint32_t self = 1u<<idx, all = (2u<<g->last_idx)-1;
 	((unsigned char *)p)[-3] = 255;
+	// invalidate offset to group header, and cycle offset of
+	// used region within slot if current offset is zero.
+	*(uint16_t *)((char *)p-2) = 0;
 
 	// atomic free without locking if this is neither first or last slot
 	for (;;) {
