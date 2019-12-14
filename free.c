@@ -107,12 +107,22 @@ void free(void *p)
 
 	struct meta *g = get_meta(p);
 	int idx = get_slot_index(p);
-	get_nominal_size(p, g->mem->storage+get_stride(g)*(idx+1)-4);
+	size_t stride = get_stride(g);
+	unsigned char *start = g->mem->storage + stride*idx;
+	unsigned char *end = start + stride - 4;
+	get_nominal_size(p, end);
 	uint32_t self = 1u<<idx, all = (2u<<g->last_idx)-1;
 	((unsigned char *)p)[-3] = 255;
 	// invalidate offset to group header, and cycle offset of
 	// used region within slot if current offset is zero.
 	*(uint16_t *)((char *)p-2) = 0;
+
+	// release any whole pages contained in the slot to be freed
+	// unless it's a single-slot group that will be unmapped.
+	if (((uintptr_t)(start-1) ^ (uintptr_t)end) >= 2*PGSZ && g->last_idx) {
+		unsigned char *base = start + (-(uintptr_t)start & (PGSZ-1));
+		madvise(base, (end-base) & -PGSZ, MADV_DONTNEED);
+	}
 
 	// atomic free without locking if this is neither first or last slot
 	for (;;) {
