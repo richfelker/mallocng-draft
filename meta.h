@@ -3,6 +3,7 @@
 
 #include <stdint.h>
 #include <errno.h>
+#include <limits.h>
 #include "assert.h"
 
 // use macros to appropriately namespace these. for libc,
@@ -40,6 +41,9 @@ struct meta_area {
 
 struct malloc_context {
 	uint64_t secret;
+#ifndef PAGESIZE
+	size_t pagesize;
+#endif
 	int init_done;
 	unsigned mmap_counter;
 	struct meta *free_meta_head;
@@ -53,6 +57,12 @@ struct malloc_context {
 
 __attribute__((__visibility__("hidden")))
 extern struct malloc_context ctx;
+
+#ifdef PAGESIZE
+#define PGSZ PAGESIZE
+#else
+#define PGSZ ctx.pagesize
+#endif
 
 static inline void queue(struct meta **phead, struct meta *m)
 {

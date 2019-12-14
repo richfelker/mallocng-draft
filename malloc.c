@@ -23,11 +23,7 @@ static inline uint64_t get_random_secret()
 
 static inline size_t get_page_size()
 {
-#ifdef PAGESIZE
-	return PAGESIZE;
-#else
 	return sysconf(_SC_PAGESIZE);
-#endif
 }
 
 const uint16_t size_classes[] = {
@@ -65,10 +61,13 @@ static struct meta *alloc_meta(void)
 	struct meta *m;
 	unsigned char *p;
 	if (!ctx.init_done) {
+#ifndef PAGESIZE
+		ctx.pagesize = get_page_size();
+#endif
 		ctx.secret = get_random_secret();
 		ctx.init_done = 1;
 	}
-	size_t pagesize = get_page_size();
+	size_t pagesize = PGSZ;
 	if (pagesize < 4096) pagesize = 4096;
 	if ((m = dequeue_head(&ctx.free_meta_head))) return m;
 	if (!ctx.avail_meta_count) {
@@ -137,7 +136,7 @@ static struct meta *alloc_group(int sc)
 	struct meta *m = alloc_meta();
 	if (!m) return 0;
 	size_t usage = ctx.usage_by_class[sc];
-	size_t pagesize = get_page_size();
+	size_t pagesize = PGSZ;
 	if (sc < 8) {
 		while (i<2 && size*small_cnt_tab[sc][i] > usage/2)
 			i++;
