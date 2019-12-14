@@ -234,6 +234,10 @@ void *malloc(size_t n)
 		g->sizeclass = 63;
 		g->maplen = (needed+4095)/4096;
 		g->avail_mask = g->freed_mask = 0;
+		// use a global counter to cycle offset in
+		// individually-mmapped allocations.
+		*(uint16_t *)(g->mem->storage-2) = ctx.mmap_counter++
+			% ((g->maplen*4096 - needed)/16);
 		idx = 0;
 		goto success;
 	}

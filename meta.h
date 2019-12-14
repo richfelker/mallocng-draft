@@ -41,6 +41,7 @@ struct meta_area {
 struct malloc_context {
 	uint64_t secret;
 	int init_done;
+	unsigned mmap_counter;
 	struct meta *free_meta_head;
 	struct meta *avail_meta;
 	size_t avail_meta_count, avail_meta_area_count, meta_alloc_shift;
