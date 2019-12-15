@@ -66,7 +66,8 @@ extern struct malloc_context ctx;
 
 static inline void queue(struct meta **phead, struct meta *m)
 {
-	assert(!m->next && !m->prev);
+	assert(!m->next);
+	assert(!m->prev);
 	if (*phead) {
 		struct meta *head = *phead;
 		m->next = head;
@@ -138,9 +139,11 @@ static inline size_t get_nominal_size(const unsigned char *p, const unsigned cha
 	if (reserved >= 5) {
 		assert(reserved == 5);
 		reserved = *(const uint32_t *)(end-4);
-		assert(reserved >= 5 && !end[-5]);
+		assert(reserved >= 5);
+		assert(!end[-5]);
 	}
-	assert(reserved <= end-p && !*(end-reserved));
+	assert(reserved <= end-p);
+	assert(!*(end-reserved));
 	return end-reserved-p;
 }
 
