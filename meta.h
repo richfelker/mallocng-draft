@@ -174,6 +174,7 @@ static inline void *enframe(struct meta *g, int idx, size_t n)
 	// cycle offset within slot to increase interval to address
 	// reuse, facilitate trapping double-free.
 	int off = *(uint16_t *)(p-2) + 1;
+	assert(!p[-4]);
 	if (16*off <= stride-4-n) {
 		// store offset in unused header at offset zero
 		// if enframing at non-zero offset.
