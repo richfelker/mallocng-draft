@@ -144,6 +144,8 @@ static inline size_t get_nominal_size(const unsigned char *p, const unsigned cha
 	}
 	assert(reserved <= end-p);
 	assert(!*(end-reserved));
+	// also check the slot's overflow byte
+	assert(!*end);
 	return end-reserved-p;
 }
 
