@@ -130,7 +130,7 @@ void free(void *p)
 		uint32_t avail = g->avail_mask;
 		uint32_t mask = freed | avail;
 		assert(!(mask&self));
-		if (!mask || mask+self==all) break;
+		if (!freed || mask+self==all) break;
 		if (!MT)
 			g->freed_mask = freed+self;
 		else if (a_cas(&g->freed_mask, freed, freed+self)!=freed)
