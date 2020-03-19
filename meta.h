@@ -184,6 +184,7 @@ static inline void *enframe(struct meta *g, int idx, size_t n)
 		// store offset in unused header at offset zero
 		// if enframing at non-zero offset.
 		*(uint16_t *)(p-2) = off;
+		p[-3] = 7<<5;
 		p += 16*off;
 		// for nonzero offset there is no permanent check
 		// byte, so make one.
