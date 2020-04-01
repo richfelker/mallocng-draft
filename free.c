@@ -70,6 +70,10 @@ static int okay_to_free(struct meta *g)
 	// that memory usage is not significant.
 	if (sc < 24) return 0;
 
+	// avoid endless cycle of freeing & recreating larger groups
+	if (ctx.bounces_by_class[sc]==255) return 0;
+	ctx.bounces_by_class[sc]++;
+
 	return 1;
 }
 
