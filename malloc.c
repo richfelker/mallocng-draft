@@ -138,7 +138,7 @@ static struct meta *alloc_group(int sc)
 	size_t usage = ctx.usage_by_class[sc];
 	size_t pagesize = PGSZ;
 	if (sc < 8) {
-		while (i<2 && size*small_cnt_tab[sc][i] > usage/2)
+		while (i<2 && 2*small_cnt_tab[sc][i] > usage)
 			i++;
 		cnt = small_cnt_tab[sc][i];
 	} else {
@@ -149,7 +149,7 @@ static struct meta *alloc_group(int sc)
 		cnt = med_cnt_tab[sc&3];
 
 		// reduce cnt to avoid excessive eagar allocation.
-		while (i-- && size*cnt > usage/2)
+		while (i-- && 2*cnt > usage)
 			cnt >>= 1;
 
 		// data structures don't support groups whose slot offsets
@@ -182,7 +182,7 @@ static struct meta *alloc_group(int sc)
 		for (int i=0; i<=cnt; i++)
 			p[16+i*size-4] = 0;
 	}
-	ctx.usage_by_class[sc] += cnt*size;
+	ctx.usage_by_class[sc] += cnt;
 	m->avail_mask = (2u<<(cnt-1))-1;
 	m->freed_mask = 0;
 	m->mem = (void *)p;
@@ -267,8 +267,8 @@ void *malloc(size_t n)
 		// if a new group may be allocated, count it toward
 		// usage in deciding if we can use coarse class.
 		if (!ctx.active[sc|1] || !ctx.active[sc|1]->avail_mask)
-			usage += 3*16*size_classes[sc|1];
-		if (usage <= 6*16*size_classes[sc|1])
+			usage += 3;
+		if (usage <= 6)
 			sc |= 1;
 	}
 

@@ -18,7 +18,7 @@ static struct mapinfo free_group(struct meta *g)
 	struct mapinfo mi = { 0 };
 	int sc = g->sizeclass;
 	if (sc < 48) {
-		ctx.usage_by_class[sc] -= (g->last_idx+1)*size_classes[sc]*16;
+		ctx.usage_by_class[sc] -= g->last_idx+1;
 	}
 	if (g->maplen) {
 		mi.base = g->mem;
@@ -51,17 +51,17 @@ static int okay_to_free(struct meta *g)
 	if (g->next != g) return 1;
 
 	int sc = g->sizeclass;
-	size_t size = 16*size_classes[sc]*(g->last_idx+1);
+	size_t cnt = g->last_idx+1;
 	size_t usage = ctx.usage_by_class[sc];
 
 	// keep groups with low relative usage unless they are
 	// low-count, in which case we'd rather replace them
 	// with full-count groups.
-	if (4*size <= usage) {
+	if (4*cnt <= usage) {
 		// FIXME: improve this logic. roughly, if this isn't a
 		// max-count group and usage is high enough to warrant
 		// allocation of a higher-count group...
-		if (g->last_idx+1 < 20 && 2*size <= (usage-size)/2)
+		if (cnt < 20 && 4*cnt <= usage-cnt)
 			return 1;
 		return 0;
 	}
