@@ -268,7 +268,7 @@ void *malloc(size_t n)
 		// usage in deciding if we can use coarse class.
 		if (!ctx.active[sc|1] || !ctx.active[sc|1]->avail_mask)
 			usage += 3;
-		if (usage <= 6)
+		if (usage <= 12)
 			sc |= 1;
 	}
 
