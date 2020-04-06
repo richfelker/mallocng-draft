@@ -84,7 +84,10 @@ static struct mapinfo nontrivial_free(struct meta *g, int i)
 	uint32_t mask = g->freed_mask | g->avail_mask;
 
 	if (mask+self == (2u<<g->last_idx)-1 && okay_to_free(g)) {
-		if (sc < 48) {
+		// any multi-slot group is necessarily on an active list
+		// here, but single-slot groups might or might not be.
+		if (g->next) {
+			assert(sc < 48);
 			int activate_new = (ctx.active[sc]==g);
 			dequeue(&ctx.active[sc], g);
 			if (activate_new && ctx.active[sc]) {
