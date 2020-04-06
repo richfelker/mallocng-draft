@@ -152,8 +152,7 @@ static inline size_t get_nominal_size(const unsigned char *p, const unsigned cha
 
 static inline size_t get_stride(struct meta *g)
 {
-	if (g->sizeclass >= 48) {
-		assert(g->sizeclass == 63);
+	if (!g->last_idx) {
 		return g->maplen*4096 - sizeof(struct group);
 	} else {
 		return 16*size_classes[g->sizeclass];
