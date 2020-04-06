@@ -150,7 +150,7 @@ static inline size_t get_nominal_size(const unsigned char *p, const unsigned cha
 	return end-reserved-p;
 }
 
-static inline size_t get_stride(struct meta *g)
+static inline size_t get_stride(const struct meta *g)
 {
 	if (!g->last_idx) {
 		return g->maplen*4096 - sizeof(struct group);
