@@ -160,6 +160,18 @@ static struct meta *alloc_group(int sc)
 	// All choices of size*cnt are "just below" a power of two, so anything
 	// larger than half the page size should be allocated as whole pages.
 	if (size*cnt+16 >= pagesize/2) {
+		// try to drop to a lower count if the one found above
+		// increases usage by more than 50%. these reduced counts
+		// roughly fill an integral number of pages, just not a
+		// power of two, limiting amount of unusable space.
+		if (2*cnt > usage) {
+			if ((sc&3)==3 && size*cnt>pagesize) cnt = 1;
+			else if ((sc&3)==1 && size*cnt>4*pagesize) cnt = 1;
+			else if ((sc&3)==1 && size*cnt>2*pagesize) cnt = 2;
+			else if ((sc&3)==2 && size*cnt>4*pagesize) cnt = 3;
+			else if ((sc&3)==0 && size*cnt>8*pagesize) cnt = 3;
+			else if ((sc&3)==0 && size*cnt>2*pagesize) cnt = 5;
+		}
 		size_t needed = size*cnt + sizeof(struct group);
 		needed += -needed & (pagesize-1);
 		p = mmap(0, needed, PROT_READ|PROT_WRITE, MAP_PRIVATE|MAP_ANON, -1, 0);
