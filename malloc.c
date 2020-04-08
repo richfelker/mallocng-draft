@@ -126,9 +126,9 @@ static uint32_t try_avail(struct meta **pm)
 	return first;
 }
 
-static int alloc_slot(int);
+static int alloc_slot(int, size_t);
 
-static struct meta *alloc_group(int sc)
+static struct meta *alloc_group(int sc, size_t req)
 {
 	size_t size = 16*size_classes[sc];
 	int i = 0, cnt;
@@ -182,7 +182,7 @@ static struct meta *alloc_group(int sc)
 		m->maplen = needed>>12;
 	} else {
 		int j = size_to_class(16+cnt*size-4);
-		int idx = alloc_slot(j);
+		int idx = alloc_slot(j, 16+cnt*size-4);
 		if (idx < 0) {
 			free_meta(m);
 			return 0;
@@ -205,12 +205,12 @@ static struct meta *alloc_group(int sc)
 	return m;
 }
 
-static int alloc_slot(int sc)
+static int alloc_slot(int sc, size_t req)
 {
 	uint32_t first = try_avail(&ctx.active[sc]);
 	if (first) return a_ctz_32(first);
 
-	struct meta *g = alloc_group(sc);
+	struct meta *g = alloc_group(sc, req);
 	if (!g) return -1;
 
 	g->avail_mask--;
@@ -284,7 +284,7 @@ void *malloc(size_t n)
 			sc |= 1;
 	}
 
-	idx = alloc_slot(sc);
+	idx = alloc_slot(sc, n);
 	if (idx < 0) {
 		unlock();
 		return 0;
