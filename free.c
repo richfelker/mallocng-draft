@@ -36,10 +36,13 @@ static struct mapinfo free_group(struct meta *g)
 
 static int okay_to_free(struct meta *g)
 {
+	int sc = g->sizeclass;
+
 	if (!g->freeable) return 0;
 
-	// always free individual mmaps
-	if (!g->last_idx) return 1;
+	// always free individual mmaps not suitable for reuse
+	if (sc >= 48 || get_stride(g) < 16*size_classes[sc])
+		return 1;
 
 	// always free groups allocated inside another group's slot
 	// since recreating them should not be expensive and they
@@ -50,7 +53,6 @@ static int okay_to_free(struct meta *g)
 	// consolidate future allocations, reduce fragmentation.
 	if (g->next != g) return 1;
 
-	int sc = g->sizeclass;
 	size_t cnt = g->last_idx+1;
 	size_t usage = ctx.usage_by_class[sc];
 
