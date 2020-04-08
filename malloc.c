@@ -174,6 +174,21 @@ static struct meta *alloc_group(int sc, size_t req)
 		}
 		size_t needed = size*cnt + sizeof(struct group);
 		needed += -needed & (pagesize-1);
+
+		// consider producing an individually mmapped allocation,
+		// possibly smaller than the slot size for the class, if
+		// request is at least 1.75 pages.
+		if (req >= 2*pagesize - pagesize/4) {
+			req += 4 + sizeof(struct group);
+			req += -req & (pagesize-1);
+			// do it if it either helps reduce relative usage jump
+			// from eagar allocation, or saves memory.
+			if ((req<needed && 2*cnt>usage) || (cnt<=7 && req<size)) {
+				cnt = 1;
+				needed = req;
+			}
+		}
+
 		p = mmap(0, needed, PROT_READ|PROT_WRITE, MAP_PRIVATE|MAP_ANON, -1, 0);
 		if (p==MAP_FAILED) {
 			free_meta(m);
