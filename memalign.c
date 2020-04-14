@@ -26,7 +26,7 @@ void *memalign(size_t align, size_t len)
 
 	if (!adj) return p;
 	p += adj;
-	*(uint16_t *)(p-2) = (p-g->mem->storage)/16U;
+	*(uint16_t *)(p-2) = (size_t)(p-g->mem->storage)/16;
 	p[-3] = idx;
 	p[-4] = 0;
 	set_size(p, end, len);

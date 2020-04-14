@@ -190,7 +190,7 @@ static inline void *enframe(struct meta *g, int idx, size_t n)
 		// byte, so make one.
 		p[-4] = 0;
 	}
-	*(uint16_t *)(p-2) = (p-g->mem->storage)/16U;
+	*(uint16_t *)(p-2) = (size_t)(p-g->mem->storage)/16;
 	p[-3] = idx;
 	set_size(p, end, n);
 	return p;
