@@ -130,7 +130,7 @@ static int alloc_slot(int, size_t);
 
 static struct meta *alloc_group(int sc, size_t req)
 {
-	size_t size = 16*size_classes[sc];
+	size_t size = UNIT*size_classes[sc];
 	int i = 0, cnt;
 	unsigned char *p;
 	struct meta *m = alloc_meta();
@@ -153,13 +153,13 @@ static struct meta *alloc_group(int sc, size_t req)
 			cnt >>= 1;
 
 		// data structures don't support groups whose slot offsets
-		// in 16-byte units don't fit in 16 bits.
-		while (size*cnt >= 65536*16)
+		// in units don't fit in 16 bits.
+		while (size*cnt >= 65536*UNIT)
 			cnt >>= 1;
 	}
 	// All choices of size*cnt are "just below" a power of two, so anything
 	// larger than half the page size should be allocated as whole pages.
-	if (size*cnt+16 >= pagesize/2) {
+	if (size*cnt+UNIT >= pagesize/2) {
 		// try to drop to a lower count if the one found above
 		// increases usage by more than 50%. these reduced counts
 		// roughly fill an integral number of pages, just not a
@@ -172,14 +172,14 @@ static struct meta *alloc_group(int sc, size_t req)
 			else if ((sc&3)==0 && size*cnt>8*pagesize) cnt = 3;
 			else if ((sc&3)==0 && size*cnt>2*pagesize) cnt = 5;
 		}
-		size_t needed = size*cnt + sizeof(struct group);
+		size_t needed = size*cnt + UNIT;
 		needed += -needed & (pagesize-1);
 
 		// consider producing an individually mmapped allocation,
 		// possibly smaller than the slot size for the class, if
 		// request is at least 1.75 pages.
 		if (req >= 2*pagesize - pagesize/4) {
-			req += 4 + sizeof(struct group);
+			req += 4 + UNIT;
 			req += -req & (pagesize-1);
 			// do it if it either helps reduce relative usage jump
 			// from eagar allocation, or saves memory.
@@ -196,18 +196,18 @@ static struct meta *alloc_group(int sc, size_t req)
 		}
 		m->maplen = needed>>12;
 	} else {
-		int j = size_to_class(16+cnt*size-4);
-		int idx = alloc_slot(j, 16+cnt*size-4);
+		int j = size_to_class(UNIT+cnt*size-4);
+		int idx = alloc_slot(j, UNIT+cnt*size-4);
 		if (idx < 0) {
 			free_meta(m);
 			return 0;
 		}
 		struct meta *g = ctx.active[j];
-		p = enframe(g, idx, 16*size_classes[j]-4);
+		p = enframe(g, idx, UNIT*size_classes[j]-4);
 		m->maplen = 0;
 		p[-3] = (p[-3]&31) | (6<<5);
 		for (int i=0; i<=cnt; i++)
-			p[16+i*size-4] = 0;
+			p[UNIT+i*size-4] = 0;
 	}
 	ctx.usage_by_class[sc] += cnt;
 	m->avail_mask = (2u<<(cnt-1))-1;
@@ -242,7 +242,7 @@ void *malloc(size_t n)
 	int idx;
 
 	if (n >= MMAP_THRESHOLD) {
-		size_t needed = n + 4 + sizeof(struct group);
+		size_t needed = n + 4 + UNIT;
 		void *p = mmap(0, needed, PROT_READ|PROT_WRITE,
 			MAP_PRIVATE|MAP_ANON, -1, 0);
 		if (p==MAP_FAILED) return 0;
@@ -263,7 +263,7 @@ void *malloc(size_t n)
 		// use a global counter to cycle offset in
 		// individually-mmapped allocations.
 		*(uint16_t *)(g->mem->storage-2) = ctx.mmap_counter++
-			% ((g->maplen*4096 - needed)/16+1);
+			% ((g->maplen*4096 - needed)/UNIT+1);
 		idx = 0;
 		goto success;
 	}

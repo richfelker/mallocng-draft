@@ -16,9 +16,11 @@ extern const uint16_t size_classes[];
 
 #define MMAP_THRESHOLD 131052
 
+#define UNIT 16
+
 struct group {
 	struct meta *meta;
-	char pad[16 - sizeof(struct meta *)];
+	char pad[UNIT - sizeof(struct meta *)];
 	unsigned char storage[];
 };
 
@@ -116,7 +118,7 @@ static inline struct meta *get_meta(const unsigned char *p)
 	int offset = *(const uint16_t *)(p - 2);
 	int index = get_slot_index(p);
 	assert(!p[-4]);
-	const struct group *base = (const void *)(p - 16*offset - sizeof *base);
+	const struct group *base = (const void *)(p - UNIT*offset - UNIT);
 	const struct meta *meta = base->meta;
 	assert(meta->mem == base);
 	assert(index <= meta->last_idx);
@@ -129,7 +131,7 @@ static inline struct meta *get_meta(const unsigned char *p)
 		assert(offset < size_classes[meta->sizeclass]*(index+1));
 	} else {
 		assert(meta->sizeclass == 63);
-		assert(offset <= meta->maplen*4096/16 - 1);
+		assert(offset <= meta->maplen*4096/UNIT - 1);
 	}
 	return (struct meta *)meta;
 }
@@ -153,9 +155,9 @@ static inline size_t get_nominal_size(const unsigned char *p, const unsigned cha
 static inline size_t get_stride(const struct meta *g)
 {
 	if (!g->last_idx) {
-		return g->maplen*4096 - sizeof(struct group);
+		return g->maplen*4096 - UNIT;
 	} else {
-		return 16*size_classes[g->sizeclass];
+		return UNIT*size_classes[g->sizeclass];
 	}
 }
 
@@ -180,17 +182,17 @@ static inline void *enframe(struct meta *g, int idx, size_t n)
 	// reuse, facilitate trapping double-free.
 	int off = *(uint16_t *)(p-2) + 1;
 	assert(!p[-4]);
-	if (16*off <= stride-4-n) {
+	if (UNIT*off <= stride-4-n) {
 		// store offset in unused header at offset zero
 		// if enframing at non-zero offset.
 		*(uint16_t *)(p-2) = off;
 		p[-3] = 7<<5;
-		p += 16*off;
+		p += UNIT*off;
 		// for nonzero offset there is no permanent check
 		// byte, so make one.
 		p[-4] = 0;
 	}
-	*(uint16_t *)(p-2) = (size_t)(p-g->mem->storage)/16;
+	*(uint16_t *)(p-2) = (size_t)(p-g->mem->storage)/UNIT;
 	p[-3] = idx;
 	set_size(p, end, n);
 	return p;

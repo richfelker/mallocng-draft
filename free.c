@@ -41,7 +41,7 @@ static int okay_to_free(struct meta *g)
 	if (!g->freeable) return 0;
 
 	// always free individual mmaps not suitable for reuse
-	if (sc >= 48 || get_stride(g) < 16*size_classes[sc])
+	if (sc >= 48 || get_stride(g) < UNIT*size_classes[sc])
 		return 1;
 
 	// always free groups allocated inside another group's slot

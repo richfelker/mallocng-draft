@@ -14,7 +14,7 @@ void *memalign(size_t align, size_t len)
 		return 0;
 	}
 
-	if (align <= 16) return malloc(len);
+	if (align <= UNIT) return malloc(len);
 
 	unsigned char *p = malloc(len + align - 1);
 	struct meta *g = get_meta(p);
@@ -26,12 +26,12 @@ void *memalign(size_t align, size_t len)
 
 	if (!adj) return p;
 	p += adj;
-	*(uint16_t *)(p-2) = (size_t)(p-g->mem->storage)/16;
+	*(uint16_t *)(p-2) = (size_t)(p-g->mem->storage)/UNIT;
 	p[-3] = idx;
 	p[-4] = 0;
 	set_size(p, end, len);
 	// store offset to aligned enframing. this facilitates cycling
 	// offset and also iteration of heap for debugging/measurement.
-	*(uint16_t *)(start - 2) = (p-start)>>4;
+	*(uint16_t *)(start - 2) = (size_t)(p-start)/UNIT;
 	return p;
 }

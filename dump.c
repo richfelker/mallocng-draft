@@ -5,8 +5,8 @@
 static void print_group(FILE *f, struct meta *g)
 {
 	size_t size = g->sizeclass>48
-		? g->maplen*4096-16
-		: 16*size_classes[g->sizeclass];
+		? g->maplen*4096-UNIT
+		: UNIT*size_classes[g->sizeclass];
 	fprintf(f, "%p: %p [%d slots] [class %d (%zu)]: ", g, g->mem,
 		g->last_idx+1, g->sizeclass, size);
 	for (int i=0; i<=g->last_idx; i++) {
@@ -61,7 +61,7 @@ void dump_heap(FILE *f)
 	fprintf(f, "free groups by size class:\n");
 	for (int i=0; i<48; i++) {
 		if (!ctx.active[i]) continue;
-		fprintf(f, "-- class %d (%d) (%zu used) --\n", i, size_classes[i]*16, ctx.usage_by_class[i]);
+		fprintf(f, "-- class %d (%d) (%zu used) --\n", i, size_classes[i]*UNIT, ctx.usage_by_class[i]);
 		print_group_list(f, ctx.active[i]);
 	}
 
