@@ -16,7 +16,7 @@ void *memalign(size_t align, size_t len)
 
 	if (align <= UNIT) return malloc(len);
 
-	unsigned char *p = malloc(len + align - 1);
+	unsigned char *p = malloc(len + align - UNIT);
 	struct meta *g = get_meta(p);
 	int idx = get_slot_index(p);
 	size_t stride = get_stride(g);
