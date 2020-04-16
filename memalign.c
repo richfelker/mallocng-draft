@@ -14,7 +14,7 @@ void *memalign(size_t align, size_t len)
 		return 0;
 	}
 
-	if (align <= UNIT) return malloc(len);
+	if (align <= UNIT) align = UNIT;
 
 	unsigned char *p = malloc(len + align - UNIT);
 	struct meta *g = get_meta(p);
