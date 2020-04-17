@@ -31,8 +31,8 @@ void *realloc(void *p, size_t n)
 		assert(g->sizeclass==63);
 		size_t base = (unsigned char *)p-start;
 		size_t needed = (n + base + UNIT + 4 + 4095) & -4096;
-		new = g->maplen*4096 == needed ? g->mem :
-			mremap(g->mem, g->maplen*4096, needed, MREMAP_MAYMOVE);
+		new = g->maplen*4096UL == needed ? g->mem :
+			mremap(g->mem, g->maplen*4096UL, needed, MREMAP_MAYMOVE);
 		if (new!=MAP_FAILED) {
 			g->mem = new;
 			g->maplen = needed/4096;

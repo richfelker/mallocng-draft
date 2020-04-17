@@ -5,7 +5,7 @@
 static void print_group(FILE *f, struct meta *g)
 {
 	size_t size = g->sizeclass>48
-		? g->maplen*4096-UNIT
+		? g->maplen*4096UL-UNIT
 		: UNIT*size_classes[g->sizeclass];
 	fprintf(f, "%p: %p [%d slots] [class %d (%zu)]: ", g, g->mem,
 		g->last_idx+1, g->sizeclass, size);

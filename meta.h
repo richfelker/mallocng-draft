@@ -131,7 +131,7 @@ static inline struct meta *get_meta(const unsigned char *p)
 		assert(offset < size_classes[meta->sizeclass]*(index+1));
 	} else {
 		assert(meta->sizeclass == 63);
-		assert(offset <= meta->maplen*4096/UNIT - 1);
+		assert(offset <= meta->maplen*4096UL/UNIT - 1);
 	}
 	return (struct meta *)meta;
 }
@@ -155,7 +155,7 @@ static inline size_t get_nominal_size(const unsigned char *p, const unsigned cha
 static inline size_t get_stride(const struct meta *g)
 {
 	if (!g->last_idx) {
-		return g->maplen*4096 - UNIT;
+		return g->maplen*4096UL - UNIT;
 	} else {
 		return UNIT*size_classes[g->sizeclass];
 	}

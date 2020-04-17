@@ -22,7 +22,7 @@ static struct mapinfo free_group(struct meta *g)
 	}
 	if (g->maplen) {
 		mi.base = g->mem;
-		mi.len = g->maplen*4096;
+		mi.len = g->maplen*4096UL;
 	} else if (g->freeable) {
 		void *p = g->mem;
 		struct meta *m = get_meta(p);
