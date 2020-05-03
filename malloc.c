@@ -49,6 +49,7 @@ static const uint8_t small_cnt_tab[][3] = {
 	{ 21, 10, 5 },
 	{ 18, 8, 4 },
 	{ 31, 15, 7 },
+	{ 28, 14, 6 },
 };
 
 static const uint8_t med_cnt_tab[4] = { 28, 24, 20, 32 };
@@ -137,7 +138,7 @@ static struct meta *alloc_group(int sc, size_t req)
 	if (!m) return 0;
 	size_t usage = ctx.usage_by_class[sc];
 	size_t pagesize = PGSZ;
-	if (sc < 8) {
+	if (sc < 9) {
 		while (i<2 && 2*small_cnt_tab[sc][i] > usage)
 			i++;
 		cnt = small_cnt_tab[sc][i];
