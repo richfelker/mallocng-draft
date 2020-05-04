@@ -24,7 +24,10 @@ void *memalign(size_t align, size_t len)
 	unsigned char *end = g->mem->storage + stride*(idx+1) - 4;
 	size_t adj = -(uintptr_t)p & (align-1);
 
-	if (!adj) return p;
+	if (!adj) {
+		set_size(p, end, len);
+		return p;
+	}
 	p += adj;
 	*(uint16_t *)(p-2) = (size_t)(p-g->mem->storage)/UNIT;
 	p[-3] = idx;
