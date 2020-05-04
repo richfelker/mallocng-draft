@@ -139,7 +139,7 @@ static struct meta *alloc_group(int sc, size_t req)
 	size_t usage = ctx.usage_by_class[sc];
 	size_t pagesize = PGSZ;
 	if (sc < 9) {
-		while (i<2 && 2*small_cnt_tab[sc][i] > usage)
+		while (i<2 && 4*small_cnt_tab[sc][i] > usage)
 			i++;
 		cnt = small_cnt_tab[sc][i];
 	} else {
@@ -150,7 +150,7 @@ static struct meta *alloc_group(int sc, size_t req)
 		cnt = med_cnt_tab[sc&3];
 
 		// reduce cnt to avoid excessive eagar allocation.
-		while (i-- && 2*cnt > usage)
+		while (i-- && 4*cnt > usage)
 			cnt >>= 1;
 
 		// data structures don't support groups whose slot offsets
@@ -162,10 +162,10 @@ static struct meta *alloc_group(int sc, size_t req)
 	// larger than half the page size should be allocated as whole pages.
 	if (size*cnt+UNIT >= pagesize/2) {
 		// try to drop to a lower count if the one found above
-		// increases usage by more than 50%. these reduced counts
+		// increases usage by more than 25%. these reduced counts
 		// roughly fill an integral number of pages, just not a
 		// power of two, limiting amount of unusable space.
-		if (2*cnt > usage) {
+		if (4*cnt > usage) {
 			if ((sc&3)==3 && size*cnt>pagesize) cnt = 1;
 			else if ((sc&3)==1 && size*cnt>4*pagesize) cnt = 1;
 			else if ((sc&3)==1 && size*cnt>2*pagesize) cnt = 2;
