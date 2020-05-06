@@ -273,6 +273,22 @@ void *malloc(size_t n)
 
 	rdlock();
 	g = ctx.active[sc];
+
+	// use coarse size classes initially when there are not yet
+	// any groups of desired size. this allows counts of 2 or 3
+	// to be allocated at first rather than having to start with
+	// 7 or 5, the min counts for even size classes.
+	if (!g && sc>=16 && !(sc&1) && !ctx.usage_by_class[sc]) {
+		size_t usage = ctx.usage_by_class[sc|1];
+		// if a new group may be allocated, count it toward
+		// usage in deciding if we can use coarse class.
+		if (!ctx.active[sc|1] || !ctx.active[sc|1]->avail_mask)
+			usage += 3;
+		if (usage <= 12)
+			sc |= 1;
+		g = ctx.active[sc];
+	}
+
 	for (;;) {
 		mask = g ? g->avail_mask : 0;
 		first = mask&-mask;
@@ -285,20 +301,6 @@ void *malloc(size_t n)
 		goto success;
 	}
 	upgradelock();
-
-	// use coarse size classes initially when there are not yet
-	// any groups of desired size. this allows counts of 2 or 3
-	// to be allocated at first rather than having to start with
-	// 7 or 5, the min counts for even size classes.
-	if (sc>=16 && !(sc&1) && !ctx.usage_by_class[sc]) {
-		size_t usage = ctx.usage_by_class[sc|1];
-		// if a new group may be allocated, count it toward
-		// usage in deciding if we can use coarse class.
-		if (!ctx.active[sc|1] || !ctx.active[sc|1]->avail_mask)
-			usage += 3;
-		if (usage <= 12)
-			sc |= 1;
-	}
 
 	idx = alloc_slot(sc, n);
 	if (idx < 0) {
