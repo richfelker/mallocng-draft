@@ -193,7 +193,8 @@ static struct meta *alloc_group(int sc, size_t req)
 				if (++ctx.bounces[mc] > 40+20*mc) {
 					ctx.bounces[mc] = 0;
 					ctx.unmaps[mc] = 0;
-					ctx.potlimit[mc]++;
+					if (ctx.potlimit[mc] < 8)
+						ctx.potlimit[mc]++;
 				}
 			}
 		}
