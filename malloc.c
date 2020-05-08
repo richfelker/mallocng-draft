@@ -190,7 +190,7 @@ static struct meta *alloc_group(int sc, size_t req)
 				ctx.unmaps[mc]--;
 				// heuristic to require more bounces for
 				// larger maps; needs tuning.
-				if (++ctx.bounces[mc] > 10+20*mc) {
+				if (++ctx.bounces[mc] > 40+20*mc) {
 					ctx.bounces[mc] = 0;
 					ctx.unmaps[mc] = 0;
 					ctx.potlimit[mc]++;
