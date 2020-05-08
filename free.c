@@ -37,7 +37,7 @@ static struct mapinfo free_group(struct meta *g)
 				// been used in potcache.
 				return mi;
 			}
-			if (sc < 40) ctx.unmaps[mc]++;
+			if (sc < 40 && ctx.unmaps[mc] < 255) ctx.unmaps[mc]++;
 		}
 		mi.base = g->mem;
 		mi.len = g->maplen*4096UL;
