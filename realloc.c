@@ -21,7 +21,7 @@ void *realloc(void *p, size_t n)
 
 	// only resize in-place if size class matches
 	if (n <= avail_size && n<MMAP_THRESHOLD
-	    && size_to_class(n)==g->sizeclass) {
+	    && size_to_class(n)+1 >= g->sizeclass) {
 		set_size(p, end, n);
 		return p;
 	}
