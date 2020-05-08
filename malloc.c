@@ -133,8 +133,7 @@ static struct meta *alloc_group(int sc, size_t req)
 	size_t size = UNIT*size_classes[sc];
 	int i = 0, cnt;
 	unsigned char *p;
-	struct meta *m = alloc_meta();
-	if (!m) return 0;
+	struct meta *m;
 	size_t usage = ctx.usage_by_class[sc];
 	size_t pagesize = PGSZ;
 	if (sc < 9) {
@@ -156,14 +155,50 @@ static struct meta *alloc_group(int sc, size_t req)
 		while (size*cnt >= 65536*UNIT)
 			cnt >>= 1;
 	}
+
+	// Compute ceil-log of desired size to look for an available
+	// mapping in the potcache (saved power-of-two sized mappings).
+	int mc = 32-a_clz_32(size*cnt+UNIT)-12;
+	if (mc<8U && ctx.potcache[mc]) {
+		m = ctx.potcache[mc];
+		dequeue(&ctx.potcache[mc], m);
+		assert(m->maplen*4096UL >= size*cnt+UNIT);
+		ctx.potcount[mc]--;
+		p = (void *)m->mem;
+		for (int i=0; i<=cnt; i++)
+			p[UNIT+i*size-4] = 0;
+		goto done;
+	}
+
+	m = alloc_meta();
+	if (!m) return 0;
+
 	// All choices of size*cnt are "just below" a power of two, so anything
 	// larger than half the page size should be allocated as whole pages.
 	if (size*cnt+UNIT >= pagesize/2) {
+		// check/update bounce counter to start/increase retention
+		// of freed maps, and inhibit use of low-count, odd-size
+		// small mappings and single-slot groups if activated.
+		int nosmall = 0;
+		if (mc<8U && sc<40) {
+			if (ctx.potlimit[mc]) nosmall = 1;
+			if (ctx.unmaps[mc]) {
+				ctx.unmaps[mc]--;
+				// heuristic to require more bounces for
+				// larger maps; needs tuning.
+				if (++ctx.bounces[mc] > 10+20*mc) {
+					ctx.bounces[mc] = 0;
+					ctx.unmaps[mc] = 0;
+					ctx.potlimit[mc]++;
+				}
+			}
+		}
+
 		// try to drop to a lower count if the one found above
 		// increases usage by more than 25%. these reduced counts
 		// roughly fill an integral number of pages, just not a
 		// power of two, limiting amount of unusable space.
-		if (4*cnt > usage) {
+		if (4*cnt > usage && !nosmall) {
 			if ((sc&3)==3 && size*cnt>pagesize) cnt = 1;
 			else if ((sc&3)==1 && size*cnt>4*pagesize) cnt = 1;
 			else if ((sc&3)==1 && size*cnt>2*pagesize) cnt = 2;
@@ -177,7 +212,7 @@ static struct meta *alloc_group(int sc, size_t req)
 		// consider producing an individually mmapped allocation,
 		// possibly smaller than the slot size for the class, if
 		// request is at least 1.75 pages.
-		if (req >= 2*pagesize - pagesize/4) {
+		if (req >= 2*pagesize - pagesize/4 && !nosmall) {
 			req += 4 + UNIT;
 			req += -req & (pagesize-1);
 			// do it if it either helps reduce relative usage jump
@@ -208,6 +243,7 @@ static struct meta *alloc_group(int sc, size_t req)
 		for (int i=0; i<=cnt; i++)
 			p[UNIT+i*size-4] = 0;
 	}
+done:
 	ctx.usage_by_class[sc] += cnt;
 	m->avail_mask = (2u<<(cnt-1))-1;
 	m->freed_mask = 0;

@@ -55,6 +55,12 @@ void dump_heap(FILE *f)
 	fprintf(f, "available new meta records: %zu\n", ctx.avail_meta_count);
 	fprintf(f, "available new meta areas: %zu\n", ctx.avail_meta_area_count);
 
+	fprintf(f, "mappings cache:");
+	for (int i=0; i<sizeof ctx.potcache/sizeof *ctx.potcache; i++) {
+		fprintf(f, " %dk(%d/%d)", 4<<i, ctx.potcount[i], ctx.potlimit[i]);
+	}
+	fprintf(f, "\n");
+
 	fprintf(f, "entirely filled, inactive groups:\n");
 	print_full_groups(f);
 

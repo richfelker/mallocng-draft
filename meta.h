@@ -55,7 +55,9 @@ struct malloc_context {
 	unsigned char *avail_meta_areas;
 	struct meta *active[48];
 	size_t usage_by_class[48];
-	uint8_t bounces_by_class[48];
+	struct meta *potcache[8];
+	uint8_t potcount[8], potlimit[8];
+	uint8_t unmaps[8], bounces[8];
 };
 
 __attribute__((__visibility__("hidden")))
