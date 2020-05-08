@@ -316,7 +316,7 @@ void *malloc(size_t n)
 	// any groups of desired size. this allows counts of 2 or 3
 	// to be allocated at first rather than having to start with
 	// 7 or 5, the min counts for even size classes.
-	if (!g && sc>=16 && !(sc&1) && !ctx.usage_by_class[sc]) {
+	if (!g && sc>=4 && sc!=6 && !(sc&1) && !ctx.usage_by_class[sc]) {
 		size_t usage = ctx.usage_by_class[sc|1];
 		// if a new group may be allocated, count it toward
 		// usage in deciding if we can use coarse class.
