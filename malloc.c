@@ -147,7 +147,7 @@ static struct meta *alloc_group(int sc, size_t req)
 		cnt = med_cnt_tab[sc&3];
 
 		// reduce cnt to avoid excessive eagar allocation.
-		while (!(cnt&1) && cnt>2 && 4*cnt > usage)
+		while (!(cnt&1) && 4*cnt > usage)
 			cnt >>= 1;
 
 		// data structures don't support groups whose slot offsets
@@ -156,9 +156,13 @@ static struct meta *alloc_group(int sc, size_t req)
 			cnt >>= 1;
 	}
 
+	// If we selected a count of 1 above but it's not sufficient to use
+	// mmap, increase to 2. Then it might be; if not it will nest.
+	if (cnt==1 && size*cnt+UNIT <= pagesize/2) cnt = 2;
+
 	// Compute ceil-log of desired size to look for an available
 	// mapping in the potcache (saved power-of-two sized mappings).
-	int mc = 32-a_clz_32(size*cnt+UNIT)-12;
+	int mc = 32-a_clz_32(size*cnt+UNIT-1)-12;
 	if (mc<8U && ctx.potcache[mc]) {
 		m = ctx.potcache[mc];
 		dequeue(&ctx.potcache[mc], m);
@@ -175,7 +179,7 @@ static struct meta *alloc_group(int sc, size_t req)
 
 	// All choices of size*cnt are "just below" a power of two, so anything
 	// larger than half the page size should be allocated as whole pages.
-	if (size*cnt+UNIT >= pagesize/2) {
+	if (size*cnt+UNIT > pagesize/2) {
 		// check/update bounce counter to start/increase retention
 		// of freed maps, and inhibit use of low-count, odd-size
 		// small mappings and single-slot groups if activated.
@@ -199,7 +203,7 @@ static struct meta *alloc_group(int sc, size_t req)
 		// roughly fill an integral number of pages, just not a
 		// power of two, limiting amount of unusable space.
 		if (4*cnt > usage && !nosmall) {
-			if ((sc&3)==3 && size*cnt>pagesize) cnt = 1;
+			if (0);
 			else if ((sc&3)==1 && size*cnt>4*pagesize) cnt = 1;
 			else if ((sc&3)==1 && size*cnt>2*pagesize) cnt = 2;
 			else if ((sc&3)==2 && size*cnt>4*pagesize) cnt = 3;
