@@ -214,15 +214,13 @@ static struct meta *alloc_group(int sc, size_t req)
 		size_t needed = size*cnt + UNIT;
 		needed += -needed & (pagesize-1);
 
-		// consider producing an individually mmapped allocation,
-		// possibly smaller than the slot size for the class, if
-		// request is at least 1.75 pages.
-		if (req >= 2*pagesize - pagesize/4 && !nosmall) {
+		// produce an individually-mmapped allocation if usage is low,
+		// bounce counter hasn't triggered, and either it saves memory
+		// or it avoids eagar slot allocation without wasting too much.
+		if (!nosmall && cnt<=7) {
 			req += 4 + UNIT;
 			req += -req & (pagesize-1);
-			// do it if it either helps reduce relative usage jump
-			// from eagar allocation, or saves memory.
-			if ((req<needed && 2*cnt>usage) || (cnt<=7 && req<size)) {
+			if (req<=size+UNIT || (req>=4*pagesize && 2*cnt>usage)) {
 				cnt = 1;
 				needed = req;
 			}
