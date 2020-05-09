@@ -1,6 +1,6 @@
 #include <stdlib.h>
 
-void *aligned_alloc(size_t align, size_t len)
+void *memalign(size_t align, size_t len)
 {
-	return memalign(align, len);
+	return aligned_alloc(align, len);
 }

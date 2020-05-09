@@ -2,7 +2,7 @@
 #include <errno.h>
 #include "meta.h"
 
-void *memalign(size_t align, size_t len)
+void *aligned_alloc(size_t align, size_t len)
 {
 	if ((align & -align) != align) {
 		errno = EINVAL;
