@@ -167,7 +167,6 @@ static struct meta *alloc_group(int sc, size_t req)
 		m = ctx.potcache[mc];
 		dequeue(&ctx.potcache[mc], m);
 		assert(m->maplen*4096UL >= size*cnt+UNIT);
-		ctx.potcount[mc]--;
 		p = (void *)m->mem;
 		for (int i=0; i<=cnt; i++)
 			p[UNIT+i*size-4] = 0;
@@ -184,18 +183,12 @@ static struct meta *alloc_group(int sc, size_t req)
 		// of freed maps, and inhibit use of low-count, odd-size
 		// small mappings and single-slot groups if activated.
 		int nosmall = 0;
-		if (mc<8U && sc<40) {
-			if (ctx.potlimit[mc]) nosmall = 1;
-			if (ctx.unmaps[mc]) {
-				ctx.unmaps[mc]--;
-				// heuristic to require more bounces for
-				// larger maps; needs tuning.
-				if (++ctx.bounces[mc] > 40+20*mc) {
-					ctx.bounces[mc] = 0;
-					ctx.unmaps[mc] = 0;
-					if (ctx.potlimit[mc] < 8)
-						ctx.potlimit[mc]++;
-				}
+		if (sc>=7 && sc<39) {
+			if (ctx.bounces[sc-7] > 100) nosmall = 1;
+			if (ctx.unmaps[sc-7]) {
+				ctx.unmaps[sc-7]--;
+				if (ctx.bounces[sc-7] < 255)
+					ctx.bounces[sc-7]++;
 			}
 		}
 

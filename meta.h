@@ -56,8 +56,7 @@ struct malloc_context {
 	struct meta *active[48];
 	size_t usage_by_class[48];
 	struct meta *potcache[8];
-	uint8_t potcount[8], potlimit[8];
-	uint8_t unmaps[8], bounces[8];
+	uint8_t unmaps[32], bounces[32];
 };
 
 __attribute__((__visibility__("hidden")))

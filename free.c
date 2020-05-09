@@ -21,24 +21,28 @@ static struct mapinfo free_group(struct meta *g)
 		ctx.usage_by_class[sc] -= g->last_idx+1;
 	}
 	if (g->maplen) {
-		// Compute ceil-log of map lenth. If it's in range for
-		// bounce counter tracking, cache it or update unmap
-		// counter as appropriate.
-		int mc = 31-a_clz_32(2UL*g->maplen-1);
-		if (mc < 8U) {
-			if (ctx.potcount[mc] < ctx.potlimit[mc] &&
-			    g->maplen == 1<<mc) {
+		if (sc>=7 && sc<39) {
+			size_t usage = ctx.usage_by_class[sc];
+			int cnt = g->last_idx+1;
+			int mc = 31-a_clz_32(2UL*g->maplen-1);
+
+			// if bouncing, cnt is next usable,
+			// map has power-of-two length, and
+			// no map is already cached...
+			if (ctx.bounces[sc-7] > 100
+			    && (5*cnt<=usage || (cnt&1))
+			    && g->maplen == 1<<mc
+			    && !ctx.potcache[mc]) {
 				// dummy class so this doesn't look like group
 				g->sizeclass = 62;
 				g->mem->meta = 0;
-				ctx.potcount[mc]++;
 				queue(&ctx.potcache[mc], g);
 				// tell caller not to unmap anything, and
 				// return without freeing the meta since it's
 				// been used in potcache.
 				return mi;
 			}
-			if (sc < 40 && ctx.unmaps[mc] < 255) ctx.unmaps[mc]++;
+			if (ctx.unmaps[sc-7] < 255) ctx.unmaps[sc-7]++;
 		}
 		mi.base = g->mem;
 		mi.len = g->maplen*4096UL;

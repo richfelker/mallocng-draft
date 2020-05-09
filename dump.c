@@ -57,7 +57,7 @@ void dump_heap(FILE *f)
 
 	fprintf(f, "mappings cache:");
 	for (int i=0; i<sizeof ctx.potcache/sizeof *ctx.potcache; i++) {
-		fprintf(f, " %dk(%d/%d)", 4<<i, ctx.potcount[i], ctx.potlimit[i]);
+		fprintf(f, " %dk(%d)", 4<<i, !!ctx.potcache[i]);
 	}
 	fprintf(f, "\n");
 
