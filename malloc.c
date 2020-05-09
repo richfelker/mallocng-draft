@@ -205,7 +205,6 @@ static struct meta *alloc_group(int sc, size_t req)
 		// power of two, limiting amount of unusable space.
 		if (4*cnt > usage && !nosmall) {
 			if (0);
-			else if ((sc&3)==1 && size*cnt>4*pagesize) cnt = 1;
 			else if ((sc&3)==1 && size*cnt>2*pagesize) cnt = 2;
 			else if ((sc&3)==2 && size*cnt>4*pagesize) cnt = 3;
 			else if ((sc&3)==0 && size*cnt>8*pagesize) cnt = 3;
