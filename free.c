@@ -30,6 +30,7 @@ static struct mapinfo free_group(struct meta *g)
 			    g->maplen == 1<<mc) {
 				// dummy class so this doesn't look like group
 				g->sizeclass = 62;
+				g->mem->meta = 0;
 				ctx.potcount[mc]++;
 				queue(&ctx.potcache[mc], g);
 				// tell caller not to unmap anything, and
@@ -45,6 +46,7 @@ static struct mapinfo free_group(struct meta *g)
 		void *p = g->mem;
 		struct meta *m = get_meta(p);
 		int idx = get_slot_index(p);
+		g->mem->meta = 0;
 		// not checking size/reserved here; it's intentionally invalid
 		mi = nontrivial_free(m, idx);
 	}
