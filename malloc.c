@@ -219,7 +219,7 @@ static struct meta *alloc_group(int sc, size_t req)
 		if (!nosmall && cnt<=7) {
 			req += 4 + UNIT;
 			req += -req & (pagesize-1);
-			if (req<=size+UNIT || (req>=4*pagesize && 2*cnt>usage)) {
+			if (req<size+UNIT || (req>=4*pagesize && 2*cnt>usage)) {
 				cnt = 1;
 				needed = req;
 			}
