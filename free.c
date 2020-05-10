@@ -21,7 +21,13 @@ static struct mapinfo free_group(struct meta *g)
 		ctx.usage_by_class[sc] -= g->last_idx+1;
 	}
 	if (g->maplen) {
-		if (sc-7U<32 && ctx.unmaps[sc-7] < 255) ctx.unmaps[sc-7]++;
+		if (ctx.seq==255) {
+			for (int i=0; i<32; i++) ctx.unmap_seq[i] = 0;
+			ctx.seq = 1;
+		} else {
+			ctx.seq++;
+		}
+		if (sc-7U < 32) ctx.unmap_seq[sc-7] = ctx.seq;
 		mi.base = g->mem;
 		mi.len = g->maplen*4096UL;
 	} else {

@@ -123,6 +123,8 @@ static uint32_t try_avail(struct meta **pm)
 		}
 		mask = a_swap(&m->freed_mask, 0);
 		if (!mask) return 0;
+		if (m->sizeclass-7U < 32 && ctx.bounces[m->sizeclass-7])
+			ctx.bounces[m->sizeclass-7]--;
 	}
 	first = mask&-mask;
 	m->avail_mask = mask-first;
@@ -175,12 +177,15 @@ static struct meta *alloc_group(int sc, size_t req)
 		int nosmall = 0;
 		if (sc>=7 && sc<39) {
 			if (ctx.bounces[sc-7] > 100) nosmall = 1;
-			if (ctx.unmaps[sc-7]) {
-				ctx.unmaps[sc-7]--;
-				if (ctx.bounces[sc-7] < 255)
+			int seq = ctx.unmap_seq[sc-7];
+			if (seq && ctx.seq-seq < 10) {
+				if (ctx.bounces[sc-7] < 100-1)
 					ctx.bounces[sc-7]++;
+				else
+					ctx.bounces[sc-7] = 150;
 			}
 		}
+		if (ctx.seq<255) ctx.seq++;
 
 		// try to drop to a lower count if the one found above
 		// increases usage by more than 25%. these reduced counts
