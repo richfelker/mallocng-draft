@@ -116,7 +116,10 @@ static uint32_t try_avail(struct meta **pm)
 			m = *pm;
 			if (!m) return 0;
 		} else {
-			*pm = m = m->next;
+			m = m->next;
+			if (m->freed_mask == (2u<<m->last_idx)-1)
+				m = m->next;
+			*pm = m;
 		}
 		mask = a_swap(&m->freed_mask, 0);
 		if (!mask) return 0;
@@ -159,19 +162,6 @@ static struct meta *alloc_group(int sc, size_t req)
 	// If we selected a count of 1 above but it's not sufficient to use
 	// mmap, increase to 2. Then it might be; if not it will nest.
 	if (cnt==1 && size*cnt+UNIT <= pagesize/2) cnt = 2;
-
-	// Compute ceil-log of desired size to look for an available
-	// mapping in the potcache (saved power-of-two sized mappings).
-	int mc = 32-a_clz_32(size*cnt+UNIT-1)-12;
-	if (mc<8U && ctx.potcache[mc]) {
-		m = ctx.potcache[mc];
-		dequeue(&ctx.potcache[mc], m);
-		assert(m->maplen*4096UL >= size*cnt+UNIT);
-		p = (void *)m->mem;
-		for (int i=0; i<=cnt; i++)
-			p[UNIT+i*size-4] = 0;
-		goto done;
-	}
 
 	m = alloc_meta();
 	if (!m) return 0;
@@ -238,7 +228,6 @@ static struct meta *alloc_group(int sc, size_t req)
 		for (int i=0; i<=cnt; i++)
 			p[UNIT+i*size-4] = 0;
 	}
-done:
 	ctx.usage_by_class[sc] += cnt;
 	m->avail_mask = (2u<<(cnt-1))-1;
 	m->freed_mask = 0;

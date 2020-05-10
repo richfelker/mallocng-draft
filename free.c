@@ -21,29 +21,7 @@ static struct mapinfo free_group(struct meta *g)
 		ctx.usage_by_class[sc] -= g->last_idx+1;
 	}
 	if (g->maplen) {
-		if (sc>=7 && sc<39) {
-			size_t usage = ctx.usage_by_class[sc];
-			int cnt = g->last_idx+1;
-			int mc = 31-a_clz_32(2UL*g->maplen-1);
-
-			// if bouncing, cnt is next usable,
-			// map has power-of-two length, and
-			// no map is already cached...
-			if (ctx.bounces[sc-7] > 100
-			    && (5*cnt<=usage || (cnt&1))
-			    && g->maplen == 1<<mc
-			    && !ctx.potcache[mc]) {
-				// dummy class so this doesn't look like group
-				g->sizeclass = 62;
-				g->mem->meta = 0;
-				queue(&ctx.potcache[mc], g);
-				// tell caller not to unmap anything, and
-				// return without freeing the meta since it's
-				// been used in potcache.
-				return mi;
-			}
-			if (ctx.unmaps[sc-7] < 255) ctx.unmaps[sc-7]++;
-		}
+		if (sc-7U<32 && ctx.unmaps[sc-7] < 255) ctx.unmaps[sc-7]++;
 		mi.base = g->mem;
 		mi.len = g->maplen*4096UL;
 	} else {
@@ -58,13 +36,47 @@ static struct mapinfo free_group(struct meta *g)
 	return mi;
 }
 
+static int okay_to_free(struct meta *g)
+{
+	int sc = g->sizeclass;
+
+	if (!g->freeable) return 0;
+
+	// always free individual mmaps not suitable for reuse
+	if (sc >= 48 || get_stride(g) < UNIT*size_classes[sc])
+		return 1;
+
+	// always free groups allocated inside another group's slot
+	// since recreating them should not be expensive and they
+	// might be blocking freeing of a much larger group.
+	if (!g->maplen) return 1;
+
+	// if there is another non-full group, free this one to
+	// consolidate future allocations, reduce fragmentation.
+	if (g->next != g) return 1;
+
+	// free any group in a size class that's not bouncing
+	if (sc-7U>=32 || ctx.bounces[sc-7] < 100) return 1;
+
+	size_t cnt = g->last_idx+1;
+	size_t usage = ctx.usage_by_class[sc];
+
+	// if usage is high enough that a larger count should be
+	// used, free the low-count group so a new one will be made.
+	if (9*cnt <= usage && cnt < 20)
+		return 1;
+
+	// otherwise, keep the last group in a bouncing class.
+	return 0;
+}
+
 static struct mapinfo nontrivial_free(struct meta *g, int i)
 {
 	uint32_t self = 1u<<i;
 	int sc = g->sizeclass;
 	uint32_t mask = g->freed_mask | g->avail_mask;
 
-	if (mask+self == (2u<<g->last_idx)-1 && g->freeable) {
+	if (mask+self == (2u<<g->last_idx)-1 && okay_to_free(g)) {
 		// any multi-slot group is necessarily on an active list
 		// here, but single-slot groups might or might not be.
 		if (g->next) {
