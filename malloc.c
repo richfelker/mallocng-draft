@@ -261,6 +261,7 @@ void *malloc(size_t n)
 			MAP_PRIVATE|MAP_ANON, -1, 0);
 		if (p==MAP_FAILED) return 0;
 		wrlock();
+		step_seq();
 		g = alloc_meta();
 		if (!g) {
 			unlock();
