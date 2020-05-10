@@ -21,13 +21,8 @@ static struct mapinfo free_group(struct meta *g)
 		ctx.usage_by_class[sc] -= g->last_idx+1;
 	}
 	if (g->maplen) {
-		if (ctx.seq==255) {
-			for (int i=0; i<32; i++) ctx.unmap_seq[i] = 0;
-			ctx.seq = 1;
-		} else {
-			ctx.seq++;
-		}
-		if (sc-7U < 32) ctx.unmap_seq[sc-7] = ctx.seq;
+		step_seq();
+		record_seq(sc);
 		mi.base = g->mem;
 		mi.len = g->maplen*4096UL;
 	} else {
@@ -62,7 +57,7 @@ static int okay_to_free(struct meta *g)
 	if (g->next != g) return 1;
 
 	// free any group in a size class that's not bouncing
-	if (sc-7U>=32 || ctx.bounces[sc-7] < 100) return 1;
+	if (!is_bouncing(sc)) return 1;
 
 	size_t cnt = g->last_idx+1;
 	size_t usage = ctx.usage_by_class[sc];

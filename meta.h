@@ -229,4 +229,43 @@ static inline int size_overflows(size_t n)
 	return 0;
 }
 
+static inline void step_seq(void)
+{
+	if (ctx.seq==255) {
+		for (int i=0; i<32; i++) ctx.unmap_seq[i] = 0;
+		ctx.seq = 1;
+	} else {
+		ctx.seq++;
+	}
+}
+
+static inline void record_seq(int sc)
+{
+	if (sc-7U < 32) ctx.unmap_seq[sc-7] = ctx.seq;
+}
+
+static inline void account_bounce(int sc)
+{
+	if (sc-7U < 32) {
+		int seq = ctx.unmap_seq[sc-7];
+		if (seq && ctx.seq-seq < 10) {
+			if (ctx.bounces[sc-7]+1 < 100)
+				ctx.bounces[sc-7]++;
+			else
+				ctx.bounces[sc-7] = 150;
+		}
+	}
+}
+
+static inline void decay_bounces(int sc)
+{
+	if (sc-7U < 32 && ctx.bounces[sc-7])
+		ctx.bounces[sc-7]--;
+}
+
+static inline int is_bouncing(int sc)
+{
+	return (sc-7U < 32 && ctx.bounces[sc-7] >= 100);
+}
+
 #endif
