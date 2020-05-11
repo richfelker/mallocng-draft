@@ -137,7 +137,8 @@ static struct meta *alloc_group(int sc, size_t req)
 	size_t size = UNIT*size_classes[sc];
 	int i = 0, cnt;
 	unsigned char *p;
-	struct meta *m;
+	struct meta *m = alloc_meta();
+	if (!m) return 0;
 	size_t usage = ctx.usage_by_class[sc];
 	size_t pagesize = PGSZ;
 	if (sc < 9) {
@@ -163,9 +164,6 @@ static struct meta *alloc_group(int sc, size_t req)
 	// If we selected a count of 1 above but it's not sufficient to use
 	// mmap, increase to 2. Then it might be; if not it will nest.
 	if (cnt==1 && size*cnt+UNIT <= pagesize/2) cnt = 2;
-
-	m = alloc_meta();
-	if (!m) return 0;
 
 	// All choices of size*cnt are "just below" a power of two, so anything
 	// larger than half the page size should be allocated as whole pages.
