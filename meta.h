@@ -132,6 +132,8 @@ static inline struct meta *get_meta(const unsigned char *p)
 		assert(offset < size_classes[meta->sizeclass]*(index+1));
 	} else {
 		assert(meta->sizeclass == 63);
+	}
+	if (meta->maplen) {
 		assert(offset <= meta->maplen*4096UL/UNIT - 1);
 	}
 	return (struct meta *)meta;
