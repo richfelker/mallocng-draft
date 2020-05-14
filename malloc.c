@@ -3,28 +3,11 @@
 #include <limits.h>
 #include <string.h>
 #include <sys/mman.h>
-#include <assert.h>
 #include <errno.h>
-#include <unistd.h>
 
-#include "assert.h"
 #include "meta.h"
-#include "locking.h"
-#include "atomic.h"
 
 LOCK_OBJ_DEF;
-
-static inline uint64_t get_random_secret()
-{
-	uint64_t secret;
-	getentropy(&secret, sizeof secret);
-	return secret;
-}
-
-static inline size_t get_page_size()
-{
-	return sysconf(_SC_PAGESIZE);
-}
 
 const uint16_t size_classes[] = {
 	1, 2, 3, 4, 5, 6, 7, 8,

@@ -1,10 +1,7 @@
 #include <stdlib.h>
 #include <sys/mman.h>
 
-#include "assert.h"
 #include "meta.h"
-#include "locking.h"
-#include "atomic.h"
 
 struct mapinfo {
 	void *base;

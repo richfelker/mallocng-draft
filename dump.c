@@ -1,6 +1,5 @@
 #include <stdio.h>
 #include "meta.h"
-#include "locking.h"
 
 static void print_group(FILE *f, struct meta *g)
 {

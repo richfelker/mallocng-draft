@@ -4,12 +4,7 @@
 #include <stdint.h>
 #include <errno.h>
 #include <limits.h>
-#include "assert.h"
-
-// use macros to appropriately namespace these. for libc,
-// the names would be changed to lie in __ namespace.
-#define size_classes malloc_size_classes
-#define ctx malloc_context
+#include "glue.h"
 
 __attribute__((__visibility__("hidden")))
 extern const uint16_t size_classes[];
@@ -203,16 +198,6 @@ static inline void *enframe(struct meta *g, int idx, size_t n)
 	p[-3] = idx;
 	set_size(p, end, n);
 	return p;
-}
-
-static inline int a_ctz_32(uint32_t x)
-{
-	return __builtin_ctz(x);
-}
-
-static inline int a_clz_32(uint32_t x)
-{
-	return __builtin_clz(x);
 }
 
 static inline int size_to_class(size_t n)

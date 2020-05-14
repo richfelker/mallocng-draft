@@ -8,7 +8,7 @@ CFLAGS = -fPIC -Wall -O2 -ffreestanding
 
 all: $(ALL)
 
-$(OBJS): meta.h assert.h atomic.h locking.h
+$(OBJS): meta.h glue.h
 
 clean:
 	rm -f $(ALL) $(OBJS)

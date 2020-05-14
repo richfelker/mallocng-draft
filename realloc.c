@@ -2,7 +2,6 @@
 #include <stdlib.h>
 #include <sys/mman.h>
 #include <string.h>
-#include "assert.h"
 #include "meta.h"
 
 void *realloc(void *p, size_t n)
