@@ -52,6 +52,7 @@ struct malloc_context {
 	size_t usage_by_class[48];
 	uint8_t unmap_seq[32], bounces[32];
 	uint8_t seq;
+	uintptr_t brk;
 };
 
 __attribute__((__visibility__("hidden")))

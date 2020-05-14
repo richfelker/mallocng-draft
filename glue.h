@@ -18,6 +18,14 @@
 #define assert(x) do { if (!(x)) __builtin_trap(); } while(0)
 #endif
 
+#undef brk
+#if USE_BRK
+#include <sys/syscall.h>
+#define brk(p) ((uintptr_t)syscall(SYS_brk, p))
+#else
+#define brk(p) ((p)-1)
+#endif
+
 #ifndef MADV_FREE
 #undef madvise
 #define madvise(p,l,a) (-1)

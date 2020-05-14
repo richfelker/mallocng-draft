@@ -54,6 +54,29 @@ static struct meta *alloc_meta(void)
 	if (pagesize < 4096) pagesize = 4096;
 	if ((m = dequeue_head(&ctx.free_meta_head))) return m;
 	if (!ctx.avail_meta_count) {
+		int need_unprotect = 1;
+		if (!ctx.avail_meta_area_count && ctx.brk!=-1) {
+			uintptr_t new = ctx.brk + pagesize;
+			int need_guard = 0;
+			if (!ctx.brk) {
+				need_guard = 1;
+				ctx.brk = brk(0);
+				// some ancient kernels returned _ebss
+				// instead of next page as initial brk.
+				ctx.brk += -ctx.brk & (pagesize-1);
+				new = ctx.brk + 2*pagesize;
+			}
+			if (brk(new) != new) {
+				ctx.brk = -1;
+			} else {
+				if (need_guard) mmap((void *)ctx.brk, pagesize,
+					PROT_NONE, MAP_ANON|MAP_PRIVATE|MAP_FIXED, -1, 0);
+				ctx.brk = new;
+				ctx.avail_meta_areas = (void *)(new - pagesize);
+				ctx.avail_meta_area_count = pagesize>>12;
+				need_unprotect = 0;
+			}
+		}
 		if (!ctx.avail_meta_area_count) {
 			size_t n = 2UL << ctx.meta_alloc_shift;
 			p = mmap(0, n*pagesize, PROT_NONE,
@@ -64,7 +87,8 @@ static struct meta *alloc_meta(void)
 			ctx.meta_alloc_shift++;
 		}
 		p = ctx.avail_meta_areas;
-		if (!((uintptr_t)p & (pagesize-1)))
+		if ((uintptr_t)p & (pagesize-1)) need_unprotect = 0;
+		if (need_unprotect)
 			if (mprotect(p, pagesize, PROT_READ|PROT_WRITE))
 				return 0;
 		ctx.avail_meta_area_count--;
