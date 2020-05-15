@@ -113,7 +113,7 @@ static inline void upgradelock()
 {
 }
 
-#elif LOCK_TYPE = LOCK_TYPE_RWLOCK
+#elif LOCK_TYPE == LOCK_TYPE_RWLOCK
 
 #define RDLOCK_IS_EXCLUSIVE 0
 
