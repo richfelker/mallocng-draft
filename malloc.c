@@ -182,6 +182,11 @@ static struct meta *alloc_group(int sc, size_t req)
 		account_bounce(sc);
 		step_seq();
 
+		// since the following count reduction opportunities have
+		// an absolute memory usage cost, don't overdo them. count
+		// coarse usage as part of usage.
+		if (!(sc&1)) usage += ctx.usage_by_class[sc+1];
+
 		// try to drop to a lower count if the one found above
 		// increases usage by more than 25%. these reduced counts
 		// roughly fill an integral number of pages, just not a
