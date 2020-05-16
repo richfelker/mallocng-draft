@@ -185,7 +185,7 @@ static struct meta *alloc_group(int sc, size_t req)
 		// since the following count reduction opportunities have
 		// an absolute memory usage cost, don't overdo them. count
 		// coarse usage as part of usage.
-		if (!(sc&1)) usage += ctx.usage_by_class[sc+1];
+		if (!(sc&1) && sc<32) usage += ctx.usage_by_class[sc+1];
 
 		// try to drop to a lower count if the one found above
 		// increases usage by more than 25%. these reduced counts
@@ -302,7 +302,7 @@ void *malloc(size_t n)
 	// any groups of desired size. this allows counts of 2 or 3
 	// to be allocated at first rather than having to start with
 	// 7 or 5, the min counts for even size classes.
-	if (!g && sc>=4 && sc!=6 && !(sc&1) && !ctx.usage_by_class[sc]) {
+	if (!g && sc>=4 && sc<32 && sc!=6 && !(sc&1) && !ctx.usage_by_class[sc]) {
 		size_t usage = ctx.usage_by_class[sc|1];
 		// if a new group may be allocated, count it toward
 		// usage in deciding if we can use coarse class.
