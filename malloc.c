@@ -306,7 +306,8 @@ void *malloc(size_t n)
 		size_t usage = ctx.usage_by_class[sc|1];
 		// if a new group may be allocated, count it toward
 		// usage in deciding if we can use coarse class.
-		if (!ctx.active[sc|1] || !ctx.active[sc|1]->avail_mask)
+		if (!ctx.active[sc|1] || (!ctx.active[sc|1]->avail_mask
+		    && !ctx.active[sc|1]->freed_mask))
 			usage += 3;
 		if (usage <= 12)
 			sc |= 1;
