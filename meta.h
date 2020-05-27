@@ -15,7 +15,8 @@ extern const uint16_t size_classes[];
 
 struct group {
 	struct meta *meta;
-	char pad[UNIT - sizeof(struct meta *)];
+	unsigned char active_idx:5;
+	char pad[UNIT - sizeof(struct meta *) - 1];
 	unsigned char storage[];
 };
 
@@ -107,7 +108,10 @@ static inline void free_meta(struct meta *m)
 static inline uint32_t activate_group(struct meta *m)
 {
 	assert(!m->avail_mask);
-	return m->avail_mask = a_swap(&m->freed_mask, 0);
+	uint32_t mask, act = (2u<<m->mem->active_idx)-1;
+	do mask = m->freed_mask;
+	while (a_cas(&m->freed_mask, mask, mask&~act)!=mask);
+	return m->avail_mask = mask & act;
 }
 
 static inline int get_slot_index(const unsigned char *p)

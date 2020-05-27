@@ -126,10 +126,36 @@ static uint32_t try_avail(struct meta **pm)
 			m = m->next;
 			*pm = m;
 		}
+
+		mask = m->freed_mask;
+
 		// skip fully-free group unless it's the only one
-		if (m->freed_mask == (2u<<m->last_idx)-1) {
+		if (mask == (2u<<m->last_idx)-1) {
 			m = m->next;
 			*pm = m;
+		}
+
+		// activate more slots in a not-fully-active group
+		// if needed, but only as a last resort. prefer using
+		// any other group with free slots. this avoids
+		// touching & dirtying as-yet-unused pages.
+		if (!(mask & ((2u<<m->mem->active_idx)-1))) {
+			if (m->next != m) {
+				m = m->next;
+				*pm = m;
+			} else {
+				int cnt = m->mem->active_idx + 2;
+				int size = size_classes[m->sizeclass]*UNIT;
+				int span = UNIT + size*cnt;
+				// activate up to next 4k boundary
+				while ((span^(span+size-1)) < 4096) {
+					cnt++;
+					span += size;
+				}
+				if (cnt > m->last_idx+1)
+					cnt = m->last_idx+1;
+				m->mem->active_idx = cnt-1;
+			}
 		}
 		mask = activate_group(m);
 		assert(mask);
@@ -151,6 +177,7 @@ static struct meta *alloc_group(int sc, size_t req)
 	if (!m) return 0;
 	size_t usage = ctx.usage_by_class[sc];
 	size_t pagesize = PGSZ;
+	int active_idx;
 	if (sc < 9) {
 		while (i<2 && 4*small_cnt_tab[sc][i] > usage)
 			i++;
@@ -222,6 +249,9 @@ static struct meta *alloc_group(int sc, size_t req)
 			return 0;
 		}
 		m->maplen = needed>>12;
+		active_idx = (4096-UNIT)/size-1;
+		if (active_idx > cnt-1) active_idx = cnt-1;
+		if (active_idx < 0) active_idx = 0;
 	} else {
 		int j = size_to_class(UNIT+cnt*size-4);
 		int idx = alloc_slot(j, UNIT+cnt*size-4);
@@ -235,12 +265,14 @@ static struct meta *alloc_group(int sc, size_t req)
 		p[-3] = (p[-3]&31) | (6<<5);
 		for (int i=0; i<=cnt; i++)
 			p[UNIT+i*size-4] = 0;
+		active_idx = cnt-1;
 	}
 	ctx.usage_by_class[sc] += cnt;
-	m->avail_mask = (2u<<(cnt-1))-1;
-	m->freed_mask = 0;
+	m->avail_mask = (2u<<active_idx)-1;
+	m->freed_mask = (2u<<(cnt-1))-1 - m->avail_mask;
 	m->mem = (void *)p;
 	m->mem->meta = m;
+	m->mem->active_idx = active_idx;
 	m->last_idx = cnt-1;
 	m->freeable = 1;
 	m->sizeclass = sc;

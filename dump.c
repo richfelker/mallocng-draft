@@ -10,6 +10,7 @@ static void print_group(FILE *f, struct meta *g)
 		g->last_idx+1, g->sizeclass, size);
 	for (int i=0; i<=g->last_idx; i++) {
 		putc((g->avail_mask & (1u<<i)) ? 'a'
+			: (i > g->mem->active_idx) ? 'i'
 			: (g->freed_mask & (1u<<i)) ? 'f' : '_', f);
 	}
 	putc('\n', f);
