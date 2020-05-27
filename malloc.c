@@ -124,10 +124,11 @@ static uint32_t try_avail(struct meta **pm)
 			if (!m) return 0;
 		} else {
 			m = m->next;
-			if (m->freed_mask == (2u<<m->last_idx)-1)
-				m = m->next;
 			*pm = m;
 		}
+		// skip fully-free group unless it's the only one
+		if (m->freed_mask == (2u<<m->last_idx)-1)
+			m = m->next;
 		mask = a_swap(&m->freed_mask, 0);
 		if (!mask) return 0;
 		decay_bounces(m->sizeclass);
