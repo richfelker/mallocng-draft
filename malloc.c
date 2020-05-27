@@ -132,7 +132,7 @@ static uint32_t try_avail(struct meta **pm)
 			*pm = m;
 		}
 		mask = a_swap(&m->freed_mask, 0);
-		if (!mask) return 0;
+		assert(mask);
 		decay_bounces(m->sizeclass);
 	}
 	first = mask&-mask;
