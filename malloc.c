@@ -249,6 +249,7 @@ static struct meta *alloc_group(int sc, size_t req)
 			return 0;
 		}
 		m->maplen = needed>>12;
+		ctx.mmap_counter++;
 		active_idx = (4096-UNIT)/size-1;
 		if (active_idx > cnt-1) active_idx = cnt-1;
 		if (active_idx < 0) active_idx = 0;
@@ -260,7 +261,7 @@ static struct meta *alloc_group(int sc, size_t req)
 			return 0;
 		}
 		struct meta *g = ctx.active[j];
-		p = enframe(g, idx, UNIT*size_classes[j]-4);
+		p = enframe(g, idx, UNIT*size_classes[j]-4, ctx.mmap_counter);
 		m->maplen = 0;
 		p[-3] = (p[-3]&31) | (6<<5);
 		for (int i=0; i<=cnt; i++)
@@ -299,6 +300,7 @@ void *malloc(size_t n)
 	uint32_t mask, first;
 	int sc;
 	int idx;
+	int ctr;
 
 	if (n >= MMAP_THRESHOLD) {
 		size_t needed = n + 4 + UNIT;
@@ -322,8 +324,7 @@ void *malloc(size_t n)
 		g->avail_mask = g->freed_mask = 0;
 		// use a global counter to cycle offset in
 		// individually-mmapped allocations.
-		*(uint16_t *)(g->mem->storage-2) = ctx.mmap_counter++
-			% ((g->maplen*4096UL - needed)/UNIT+1);
+		ctx.mmap_counter++;
 		idx = 0;
 		goto success;
 	}
@@ -370,8 +371,9 @@ void *malloc(size_t n)
 	g = ctx.active[sc];
 
 success:
+	ctr = ctx.mmap_counter;
 	unlock();
-	return enframe(g, idx, n);
+	return enframe(g, idx, n, ctr);
 }
 
 void *calloc(size_t m, size_t n)

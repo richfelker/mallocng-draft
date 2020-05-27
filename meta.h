@@ -186,16 +186,24 @@ static inline void set_size(unsigned char *p, unsigned char *end, size_t n)
 	p[-3] = (p[-3]&31) + (reserved<<5);
 }
 
-static inline void *enframe(struct meta *g, int idx, size_t n)
+static inline void *enframe(struct meta *g, int idx, size_t n, int ctr)
 {
 	size_t stride = get_stride(g);
+	size_t slack = (stride-4-n)/UNIT;
 	unsigned char *p = g->mem->storage + stride*idx;
 	unsigned char *end = p+stride-4;
 	// cycle offset within slot to increase interval to address
 	// reuse, facilitate trapping double-free.
-	int off = *(uint16_t *)(p-2) + 1;
+	int off = (p[-3] ? *(uint16_t *)(p-2) + 1 : ctr) & 255;
 	assert(!p[-4]);
-	if (UNIT*off <= stride-4-n) {
+	if (off > slack) {
+		size_t m = slack;
+		m |= m>>1; m |= m>>2; m |= m>>4;
+		off &= m;
+		if (off > slack) off -= slack+1;
+		assert(off <= slack);
+	}
+	if (off) {
 		// store offset in unused header at offset zero
 		// if enframing at non-zero offset.
 		*(uint16_t *)(p-2) = off;
