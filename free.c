@@ -81,10 +81,8 @@ static struct mapinfo nontrivial_free(struct meta *g, int i)
 			assert(sc < 48);
 			int activate_new = (ctx.active[sc]==g);
 			dequeue(&ctx.active[sc], g);
-			if (activate_new && ctx.active[sc]) {
-				struct meta *m = ctx.active[sc];
-				m->avail_mask = a_swap(&m->freed_mask, 0);
-			}
+			if (activate_new && ctx.active[sc])
+				activate_group(ctx.active[sc]);
 		}
 		return free_group(g);
 	} else if (!mask) {

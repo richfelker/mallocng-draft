@@ -104,6 +104,12 @@ static inline void free_meta(struct meta *m)
 	queue(&ctx.free_meta_head, m);
 }
 
+static inline uint32_t activate_group(struct meta *m)
+{
+	assert(!m->avail_mask);
+	return m->avail_mask = a_swap(&m->freed_mask, 0);
+}
+
 static inline int get_slot_index(const unsigned char *p)
 {
 	return p[-3] & 31;
