@@ -10,6 +10,7 @@
 // the names would be changed to lie in __ namespace.
 #define size_classes malloc_size_classes
 #define ctx malloc_context
+#define alloc_meta malloc_alloc_meta
 
 #if USE_REAL_ASSERT
 #include <assert.h>

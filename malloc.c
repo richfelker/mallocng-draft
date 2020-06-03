@@ -39,7 +39,7 @@ static const uint8_t med_cnt_tab[4] = { 28, 24, 20, 32 };
 
 struct malloc_context ctx = { 0 };
 
-static struct meta *alloc_meta(void)
+struct meta *alloc_meta(void)
 {
 	struct meta *m;
 	unsigned char *p;
