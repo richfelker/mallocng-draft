@@ -65,6 +65,9 @@ extern struct malloc_context ctx;
 #define PGSZ ctx.pagesize
 #endif
 
+__attribute__((__visibility__("hidden")))
+struct meta *alloc_meta(void);
+
 static inline void queue(struct meta **phead, struct meta *m)
 {
 	assert(!m->next);
