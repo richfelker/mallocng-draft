@@ -47,5 +47,6 @@ void *aligned_alloc(size_t align, size_t len)
 	// for extreme overalignment it won't fit but these are classless
 	// allocations anyway.
 	*(uint16_t *)(start - 2) = (size_t)(p-start)/UNIT;
+	start[-3] = 7<<5;
 	return p;
 }
