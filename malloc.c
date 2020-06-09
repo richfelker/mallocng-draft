@@ -131,7 +131,8 @@ static uint32_t try_avail(struct meta **pm)
 		mask = m->freed_mask;
 
 		// skip fully-free group unless it's the only one
-		if (mask == (2u<<m->last_idx)-1) {
+		// or it's a permanently non-freeable group
+		if (mask == (2u<<m->last_idx)-1 && m->freeable) {
 			m = m->next;
 			*pm = m;
 			mask = m->freed_mask;
