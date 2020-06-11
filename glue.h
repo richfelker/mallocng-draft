@@ -39,6 +39,8 @@
 #define mremap(p,o,n,f) MAP_FAILED
 #endif
 
+#define DISABLE_ALIGNED_ALLOC 0
+
 static inline int a_ctz_32(uint32_t x)
 {
 	return __builtin_ctz(x);
