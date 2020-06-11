@@ -11,6 +11,7 @@
 #define size_classes malloc_size_classes
 #define ctx malloc_context
 #define alloc_meta malloc_alloc_meta
+#define is_allzero malloc_allzerop
 
 #if USE_REAL_ASSERT
 #include <assert.h>

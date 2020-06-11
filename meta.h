@@ -68,6 +68,9 @@ extern struct malloc_context ctx;
 __attribute__((__visibility__("hidden")))
 struct meta *alloc_meta(void);
 
+__attribute__((__visibility__("hidden")))
+int is_allzero(void *);
+
 static inline void queue(struct meta **phead, struct meta *m)
 {
 	assert(!m->next);

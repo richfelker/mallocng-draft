@@ -11,6 +11,6 @@ void *calloc(size_t m, size_t n)
 	}
 	n *= m;
 	void *p = malloc(n);
-	if (!p) return p;
-	return n >= MMAP_THRESHOLD ? p : memset(p, 0, n);
+	if (!p || is_allzero(p)) return p;
+	return memset(p, 0, n);
 }

@@ -378,3 +378,10 @@ success:
 	unlock();
 	return enframe(g, idx, n, ctr);
 }
+
+int is_allzero(void *p)
+{
+	struct meta *g = get_meta(p);
+	return g->sizeclass >= 48 ||
+		get_stride(g) < UNIT*size_classes[g->sizeclass];
+}
