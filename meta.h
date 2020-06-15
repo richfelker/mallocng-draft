@@ -12,6 +12,7 @@ extern const uint16_t size_classes[];
 #define MMAP_THRESHOLD 131052
 
 #define UNIT 16
+#define IB 4
 
 struct group {
 	struct meta *meta;
@@ -195,9 +196,9 @@ static inline void set_size(unsigned char *p, unsigned char *end, size_t n)
 static inline void *enframe(struct meta *g, int idx, size_t n, int ctr)
 {
 	size_t stride = get_stride(g);
-	size_t slack = (stride-4-n)/UNIT;
+	size_t slack = (stride-IB-n)/UNIT;
 	unsigned char *p = g->mem->storage + stride*idx;
-	unsigned char *end = p+stride-4;
+	unsigned char *end = p+stride-IB;
 	// cycle offset within slot to increase interval to address
 	// reuse, facilitate trapping double-free.
 	int off = (p[-3] ? *(uint16_t *)(p-2) + 1 : ctr) & 255;
@@ -227,7 +228,7 @@ static inline void *enframe(struct meta *g, int idx, size_t n, int ctr)
 
 static inline int size_to_class(size_t n)
 {
-	n = (n+3)>>4;
+	n = (n+IB-1)>>4;
 	if (n<10) return n;
 	n++;
 	int i = (28-a_clz_32(n))*4 + 8;

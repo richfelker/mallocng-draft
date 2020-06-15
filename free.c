@@ -106,7 +106,7 @@ void free(void *p)
 	int idx = get_slot_index(p);
 	size_t stride = get_stride(g);
 	unsigned char *start = g->mem->storage + stride*idx;
-	unsigned char *end = start + stride - 4;
+	unsigned char *end = start + stride - IB;
 	get_nominal_size(p, end);
 	uint32_t self = 1u<<idx, all = (2u<<g->last_idx)-1;
 	((unsigned char *)p)[-3] = 255;

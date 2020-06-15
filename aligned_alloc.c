@@ -26,7 +26,7 @@ void *aligned_alloc(size_t align, size_t len)
 	int idx = get_slot_index(p);
 	size_t stride = get_stride(g);
 	unsigned char *start = g->mem->storage + stride*idx;
-	unsigned char *end = g->mem->storage + stride*(idx+1) - 4;
+	unsigned char *end = g->mem->storage + stride*(idx+1) - IB;
 	size_t adj = -(uintptr_t)p & (align-1);
 
 	if (!adj) {

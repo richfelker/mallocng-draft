@@ -238,7 +238,7 @@ static struct meta *alloc_group(int sc, size_t req)
 		// bounce counter hasn't triggered, and either it saves memory
 		// or it avoids eagar slot allocation without wasting too much.
 		if (!nosmall && cnt<=7) {
-			req += 4 + UNIT;
+			req += IB + UNIT;
 			req += -req & (pagesize-1);
 			if (req<size+UNIT || (req>=4*pagesize && 2*cnt>usage)) {
 				cnt = 1;
@@ -257,14 +257,14 @@ static struct meta *alloc_group(int sc, size_t req)
 		if (active_idx > cnt-1) active_idx = cnt-1;
 		if (active_idx < 0) active_idx = 0;
 	} else {
-		int j = size_to_class(UNIT+cnt*size-4);
-		int idx = alloc_slot(j, UNIT+cnt*size-4);
+		int j = size_to_class(UNIT+cnt*size-IB);
+		int idx = alloc_slot(j, UNIT+cnt*size-IB);
 		if (idx < 0) {
 			free_meta(m);
 			return 0;
 		}
 		struct meta *g = ctx.active[j];
-		p = enframe(g, idx, UNIT*size_classes[j]-4, ctx.mmap_counter);
+		p = enframe(g, idx, UNIT*size_classes[j]-IB, ctx.mmap_counter);
 		m->maplen = 0;
 		p[-3] = (p[-3]&31) | (6<<5);
 		for (int i=0; i<=cnt; i++)
@@ -306,7 +306,7 @@ void *malloc(size_t n)
 	int ctr;
 
 	if (n >= MMAP_THRESHOLD) {
-		size_t needed = n + 4 + UNIT;
+		size_t needed = n + IB + UNIT;
 		void *p = mmap(0, needed, PROT_READ|PROT_WRITE,
 			MAP_PRIVATE|MAP_ANON, -1, 0);
 		if (p==MAP_FAILED) return 0;

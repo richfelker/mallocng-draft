@@ -7,6 +7,6 @@ size_t malloc_usable_size(void *p)
 	int idx = get_slot_index(p);
 	size_t stride = get_stride(g);
 	unsigned char *start = g->mem->storage + stride*idx;
-	unsigned char *end = start + stride - 4;
+	unsigned char *end = start + stride - IB;
 	return get_nominal_size(p, end);
 }
