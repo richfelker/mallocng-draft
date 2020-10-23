@@ -117,20 +117,20 @@ static inline uint32_t activate_group(struct meta *m)
 	assert(!m->avail_mask);
 	uint32_t mask, act = (2u<<m->mem->active_idx)-1;
 	do mask = m->freed_mask;
-	while (a_cas(&m->freed_mask, mask, mask&~act)!=mask);
+	while ((uint32_t)a_cas(&m->freed_mask, mask, mask&~act)!=mask);
 	return m->avail_mask = mask & act;
 }
 
-static inline int get_slot_index(const unsigned char *p)
+static inline size_t get_slot_index(const unsigned char *p)
 {
-	return p[-3] & 31;
+	return (size_t)p[-3] & 31;
 }
 
 static inline struct meta *get_meta(const unsigned char *p)
 {
 	assert(!((uintptr_t)p & 15));
-	int offset = *(const uint16_t *)(p - 2);
-	int index = get_slot_index(p);
+	uintptr_t offset = *(const uint16_t *)(p - 2);
+	size_t index = get_slot_index(p);
 	if (p[-4]) {
 		assert(!offset);
 		offset = *(uint32_t *)(p - 8);
@@ -146,7 +146,7 @@ static inline struct meta *get_meta(const unsigned char *p)
 	assert(area->check == ctx.secret);
 	if (meta->sizeclass < 48) {
 		assert(offset >= size_classes[meta->sizeclass]*index);
-		assert(offset < size_classes[meta->sizeclass]*(index+1));
+		assert(offset < size_classes[meta->sizeclass]*(index+1u));
 	} else {
 		assert(meta->sizeclass == 63);
 	}
@@ -165,7 +165,8 @@ static inline size_t get_nominal_size(const unsigned char *p, const unsigned cha
 		assert(reserved >= 5);
 		assert(!end[-5]);
 	}
-	assert(reserved <= end-p);
+	assert(p <= end);
+	assert(reserved <= (size_t)(end-p));
 	assert(!*(end-reserved));
 	// also check the slot's overflow byte
 	assert(!*end);
@@ -201,7 +202,7 @@ static inline void *enframe(struct meta *g, int idx, size_t n, int ctr)
 	unsigned char *end = p+stride-IB;
 	// cycle offset within slot to increase interval to address
 	// reuse, facilitate trapping double-free.
-	int off = (p[-3] ? *(uint16_t *)(p-2) + 1 : ctr) & 255;
+	uintptr_t off = (p[-3] ? (*(uint16_t *)(p-2u) + 1) : ctr) & 255;
 	assert(!p[-4]);
 	if (off > slack) {
 		size_t m = slack;
