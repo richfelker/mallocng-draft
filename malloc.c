@@ -55,7 +55,7 @@ struct meta *alloc_meta(void)
 	if ((m = dequeue_head(&ctx.free_meta_head))) return m;
 	if (!ctx.avail_meta_count) {
 		int need_unprotect = 1;
-		if (!ctx.avail_meta_area_count && ctx.brk!=-1) {
+		if (!ctx.avail_meta_area_count && ctx.brk!=(uintptr_t)-1) {
 			uintptr_t new = ctx.brk + pagesize;
 			int need_guard = 0;
 			if (!ctx.brk) {
@@ -174,13 +174,13 @@ static int alloc_slot(int, size_t);
 static struct meta *alloc_group(int sc, size_t req)
 {
 	size_t size = UNIT*size_classes[sc];
-	int i = 0, cnt;
+	ssize_t i = 0, cnt;
 	unsigned char *p;
 	struct meta *m = alloc_meta();
 	if (!m) return 0;
-	size_t usage = ctx.usage_by_class[sc];
+	ssize_t usage = ctx.usage_by_class[sc];
 	size_t pagesize = PGSZ;
-	int active_idx;
+	ssize_t active_idx;
 	if (sc < 9) {
 		while (i<2 && 4*small_cnt_tab[sc][i] > usage)
 			i++;
@@ -359,7 +359,7 @@ void *malloc(size_t n)
 		if (!first) break;
 		if (RDLOCK_IS_EXCLUSIVE || !MT)
 			g->avail_mask = mask-first;
-		else if (a_cas(&g->avail_mask, mask, mask-first)!=mask)
+		else if ((uint32_t)a_cas(&g->avail_mask, mask, mask-first)!=mask)
 			continue;
 		idx = a_ctz_32(first);
 		goto success;

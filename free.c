@@ -131,7 +131,7 @@ void free(void *p)
 		if (!freed || mask+self==all) break;
 		if (!MT)
 			g->freed_mask = freed+self;
-		else if (a_cas(&g->freed_mask, freed, freed+self)!=freed)
+		else if ((uint32_t)a_cas(&g->freed_mask, freed, freed+self)!=freed)
 			continue;
 		return;
 	}
